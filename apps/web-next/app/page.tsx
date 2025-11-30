@@ -3,16 +3,22 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { RefreshCw, ExternalLink, Shield, BarChart3, Eye, Globe } from 'lucide-react';
+import { RefreshCw, ExternalLink, Shield, BarChart3, Eye, Globe, Activity, Cpu, Fingerprint as FingerprintIcon, Lock } from 'lucide-react';
 import { collectFingerprint } from '@/lib/fingerprint';
 import type { FingerprintPayload, PanelKey, PanelStatus, ReportResponse } from '@/types/report';
 import { PageLayout } from '@/components/Layout/PageLayout';
 import { Section } from '@/components/Layout/Section';
 import { PanelCard } from '@/components/PanelCard';
 import { PanelDetail } from '@/components/PanelDetail';
-import { ScoreDial } from '@/components/ScoreDial';
+import { ModernScoreDial } from '@/components/ModernScoreDial';
 import { StatusBadge } from '@/components/StatusBadge';
 import { InsightFields } from '@/components/InsightFields';
+import { PremiumCard } from '@/components/PremiumCard';
+import { PremiumPanel } from '@/components/PremiumCard';
+import { PremiumButton } from '@/components/PremiumButton';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import { VerdictSkeleton, PanelCardsSkeleton, RadarChartSkeleton } from '@/components/LoadingStates/ReportSkeleton';
 import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
 import { RiskAssessmentCard } from '@/components/RiskAssessmentCard';
@@ -53,7 +59,7 @@ const ComponentLoader = ({ message = 'Loading...' }: { message?: string }) => (
   <div className="flex items-center justify-center py-12">
     <div className="text-center space-y-4">
       <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-accent border-t-transparent"></div>
-      <p className="text-sm text-slate-400">{message}</p>
+      <p className="text-sm text-muted">{message}</p>
     </div>
   </div>
 );
@@ -156,15 +162,30 @@ const ReportExperience = () => {
 
   if (error && !isFetching && !data) {
     return (
-      <div className="mx-auto max-w-3xl text-center space-y-6">
-        <h1 className="text-3xl font-semibold text-white">{"Failed to Load Report"}</h1>
-        <p className="text-slate-400 text-lg">{(error as Error).message ?? "An unknown error occurred"}</p>
-        <button
-          onClick={() => refetch()}
-          className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-slate-900"
+      <div className="mx-auto max-w-3xl text-center space-y-8 slide-up">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", duration: 0.5 }}
+          className="w-20 h-20 mx-auto rounded-full glass-panel flex items-center justify-center text-destructive"
         >
-          <RefreshCw className={isFetching ? 'animate-spin' : ''} size={18} /> {"Try Again"}
-        </button>
+          <RefreshCw className="h-10 w-10" />
+        </motion.div>
+        <div className="space-y-4">
+          <h1 className="text-4xl font-bold text-foreground">Failed to Load Report</h1>
+          <p className="text-muted-foreground text-lg max-w-md mx-auto">
+            {(error as Error).message ?? "An unknown error occurred"}
+          </p>
+        </div>
+        <PremiumButton
+          onClick={() => refetch()}
+          size="lg"
+          variant="gradient"
+          icon={<RefreshCw className={isFetching ? 'animate-spin' : ''} size={18} />}
+          className="mx-auto"
+        >
+          Try Again
+        </PremiumButton>
       </div>
     );
   }
@@ -192,36 +213,87 @@ const ReportExperience = () => {
                 </div>
               </div>
               <div className="hidden lg:block">
-                <ScoreDial score={data?.score} status={verdict} />
+                <ModernScoreDial
+                  score={data?.score}
+                  status={verdict}
+                  size="lg"
+                  showDetails={true}
+                  animateOnMount={true}
+                />
+              </div>
+              <div className="lg:hidden">
+                <ModernScoreDial
+                  score={data?.score}
+                  status={verdict}
+                  size="md"
+                  showDetails={true}
+                  animateOnMount={true}
+                />
               </div>
             </div>
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-white/5 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-widest text-slate-500">{"IP Address"}</p>
-                <p className="text-lg text-white font-mono">
-                  {data?.ip ? (data.ip === '::1' ? "localhost (IPv6)" : data.ip) : "Detecting..."}
-                </p>
-                {enhancedIPData?.asn_analysis && (
-                  <div className="mt-2 pt-2 border-t border-white/5">
-                    <p className="text-xs text-slate-400">
-                      ASN: <span className="text-blue-300 font-semibold">AS{enhancedIPData.asn_analysis.asn}</span>
-                    </p>
-                    <p className="text-xs text-slate-400 truncate" title={enhancedIPData.asn_analysis.info.org_name || enhancedIPData.asn_analysis.info.name}>
-                      {enhancedIPData.asn_analysis.info.org_name || enhancedIPData.asn_analysis.info.name || 'Unknown'}
-                    </p>
+            <div className="mt-8 grid gap-6 md:grid-cols-3">
+              <PremiumCard
+                delay={0.1}
+                icon={<Globe className="h-6 w-6" />}
+                title="IP Address"
+                description="Your current IP address and network details"
+              >
+                <div className="space-y-3">
+                  <p className="text-2xl font-mono text-foreground">
+                    {data?.ip ? (data.ip === '::1' ? "localhost (IPv6)" : data.ip) : "Detecting..."}
+                  </p>
+                  {enhancedIPData?.asn_analysis && (
+                    <div className="space-y-2">
+                      <Separator />
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">ASN</span>
+                          <Badge variant="secondary" className="font-mono">
+                            AS{enhancedIPData.asn_analysis.asn}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground truncate"
+                             title={enhancedIPData.asn_analysis.info.org_name || enhancedIPData.asn_analysis.info.name}>
+                          {enhancedIPData.asn_analysis.info.org_name || enhancedIPData.asn_analysis.info.name || 'Unknown'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </PremiumCard>
+
+              <PremiumCard
+                delay={0.2}
+                icon={<Activity className="h-6 w-6" />}
+                title="Fetched At"
+                description="When this report was generated"
+              >
+                <div className="space-y-2">
+                  <p className="text-2xl text-foreground">
+                    {data ? new Date(data.fetchedAt).toLocaleTimeString() : '—'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {data ? new Date(data.fetchedAt).toDateString() : ''}
+                  </p>
+                </div>
+              </PremiumCard>
+
+              <PremiumCard
+                delay={0.3}
+                icon={<RefreshCw className="h-6 w-6" />}
+                title="Cache Freshness"
+                description="Data source and freshness status"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    <span className="text-lg font-semibold text-foreground">Real-time</span>
                   </div>
-                )}
-              </div>
-              <div className="rounded-2xl border border-white/5 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-widest text-slate-500">{"Fetched At"}</p>
-                <p className="text-lg text-white">{data ? new Date(data.fetchedAt).toLocaleTimeString() : '—'}</p>
-                <p className="text-xs text-slate-500">{data ? new Date(data.fetchedAt).toDateString() : ''}</p>
-              </div>
-              <div className="rounded-2xl border border-white/5 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-widest text-slate-500">{"Cache Freshness"}</p>
-                <p className="text-lg text-white">{"Real-time"}</p>
-                <p className="text-xs text-slate-500">{"Live data"}</p>
-              </div>
+                  <Badge variant="outline" className="w-fit">
+                    Live data from {enhancedIPData?.sourcesUsed || 'multiple'} sources
+                  </Badge>
+                </div>
+              </PremiumCard>
             </div>
           </>
         )}

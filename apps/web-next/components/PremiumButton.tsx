@@ -1,16 +1,19 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Button, ButtonProps } from './ui/button';
+import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 
-interface PremiumButtonProps extends ButtonProps {
+interface PremiumButtonProps {
   variant?: 'default' | 'gradient' | 'glass' | 'outline';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   children: React.ReactNode;
   className?: string;
   icon?: React.ReactNode;
   glow?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
+  type?: 'button' | 'submit' | 'reset';
 }
 
 export function PremiumButton({

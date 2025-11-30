@@ -290,7 +290,7 @@ const ReportExperience = () => {
                     <span className="text-lg font-semibold text-foreground">Real-time</span>
                   </div>
                   <Badge variant="outline" className="w-fit">
-                    Live data from {enhancedIPData?.sourcesUsed || 'multiple'} sources
+                    Live data from {enhancedIPData?.sources_used || 'multiple'} sources
                   </Badge>
                 </div>
               </PremiumCard>

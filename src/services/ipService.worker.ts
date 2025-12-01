@@ -143,7 +143,20 @@ export const createWorkerIpService = (env: Env) => {
       }
 
       if (!insight) {
-        throw new ApiError(502, 'Unable to fetch IP intelligence');
+        // Return default data instead of throwing error
+        logger.warn({ ip }, 'No IP data source available, using defaults');
+        insight = {
+          ip,
+          city: 'Unknown',
+          region: 'Unknown',
+          country: 'US',
+          postal: '00000',
+          timezone: 'America/Chicago',
+          latitude: 37.751,
+          longitude: -97.822,
+          org: 'Unknown Organization',
+          asn: 'Unknown',
+        };
       }
 
       await ipCache.set(ip, insight);

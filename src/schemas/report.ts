@@ -1,5 +1,13 @@
-import { isIP } from 'node:net';
 import { z } from 'zod';
+
+// Simple IP validation regex (works in Workers without node:net)
+const isValidIP = (ip: string): boolean => {
+  // IPv4
+  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  // IPv6 (simplified)
+  const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::$|^([0-9a-fA-F]{1,4}:)*::([0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/;
+  return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+};
 
 export const fingerprintSchema = z.object({
   userAgent: z.string().min(5),
@@ -97,7 +105,7 @@ export const fingerprintSchema = z.object({
 export const reportRequestSchema = z.object({
   ip: z
     .string()
-    .refine(value => isIP(value) !== 0, { message: 'Invalid IP address' })
+    .refine(value => isValidIP(value), { message: 'Invalid IP address' })
     .optional(),
   fingerprint: fingerprintSchema,
 });

@@ -9,6 +9,7 @@ export const Footer = () => {
     resources: [
       { label: 'Documentation', href: '/docs' },
       { label: 'API Reference', href: '/api-reference' },
+      { label: 'GitHub Repository', href: 'https://github.com/taoyadev/iphey', external: true },
     ],
     creditTo: [
       { label: 'CreepJS Checker', href: 'https://creepjs.org/checker', external: true },
@@ -84,16 +85,22 @@ export const Footer = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
+                    target={link.external ? '_blank' : undefined}
+                    rel={link.external ? 'noopener noreferrer' : undefined}
                     className="text-sm text-slate-400 hover:text-accent transition-colors inline-flex items-center gap-1 group"
                   >
                     {link.label}
-                    <motion.span
-                      initial={{ x: 0 }}
-                      whileHover={{ x: 3 }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      →
-                    </motion.span>
+                    {link.external ? (
+                      <ExternalLink className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    ) : (
+                      <motion.span
+                        initial={{ x: 0 }}
+                        whileHover={{ x: 3 }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        →
+                      </motion.span>
+                    )}
                   </a>
                 </li>
               ))}

@@ -5,6 +5,7 @@ export interface Env {
   IPINFO_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_RADAR_TOKEN?: string;
+  ABUSEIPDB_API_KEY?: string;
   NODE_ENV?: string;
   CACHE_BACKEND?: string;
   CACHE_TTL_MS?: string;

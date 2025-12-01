@@ -1,10 +1,15 @@
-name = "iphey"
-# Pages configuration
-pages_build_output_dir = "apps/web-next/out"
-
-# Cloudflare Pages compatibility
+name = "iphey-api"
+main = "src/worker.ts"
 compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
 
-# Environment variables
+# KV namespace for caching
+[[kv_namespaces]]
+binding = "IP_CACHE"
+id = "944114ad6d094a0eb6b699ceb42f93f1"
+
 [vars]
 NODE_ENV = "production"
+CACHE_BACKEND = "kv"
+CACHE_TTL_MS = "300000"
+LOG_LEVEL = "info"

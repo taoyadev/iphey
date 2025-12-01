@@ -9,7 +9,7 @@ import { logger as honoLogger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { cacheWarmer } from './utils/cacheWarming';
 import { logger } from './utils/logger';
-import { generateReport } from './services/reportService';
+import { generateReportWithLookup } from './services/report';
 import type { ExecutionContext, ScheduledEvent } from '@cloudflare/workers-types';
 import type { ReportRequestBody } from './types/report';
 import type { Env } from './worker/types';
@@ -49,21 +49,16 @@ function createWorkerApp() {
   );
 
   // Health check endpoint
-  app.get('/api/health', async c => {
-    const services = getWorkerIpService(c.env);
-    const radarHealthy = await services.verifyRadarToken();
-
+  app.get('/api/health', c => {
     return c.json({
       status: 'ok',
       version: '1.0.0',
       environment: 'cloudflare-workers',
-      uptime: Date.now(),
+      timestamp: Date.now(),
       cache: {
         backend: c.env.CACHE_BACKEND ?? 'kv',
         enabled: true,
       },
-      radarHealthy,
-      timestamp: Date.now(),
     });
   });
 
@@ -101,7 +96,7 @@ function createWorkerApp() {
       }
 
       const services = getWorkerIpService(c.env);
-      const report = await generateReport(
+      const report = await generateReportWithLookup(
         body,
         c.req.header('cf-connecting-ip') ?? undefined,
         services.lookupIpInsight
@@ -143,7 +138,8 @@ function createWorkerApp() {
           country: 'US',
           region: 'Unknown',
           city: 'Unknown',
-          loc: '37.751,-97.822', // Default to US center
+          latitude: 37.751,
+          longitude: -97.822,
           timezone: 'America/Chicago',
           org: 'Unknown Organization',
           postal: '00000'
@@ -160,8 +156,8 @@ function createWorkerApp() {
           country: result.country || 'Unknown',
           postal: result.postal || 'Unknown',
           timezone: result.timezone || 'Unknown',
-          latitude: parseFloat(result.loc?.split(',')[0]) || 0,
-          longitude: parseFloat(result.loc?.split(',')[1]) || 0,
+          latitude: result.latitude || 0,
+          longitude: result.longitude || 0,
           org: result.org || 'Unknown',
           asn: result.org ? '13335' : 'Unknown',
           source: 'ipinfo',
@@ -231,7 +227,8 @@ function createWorkerApp() {
           country: 'US',
           region: 'Unknown',
           city: 'Unknown',
-          loc: '37.751,-97.822',
+          latitude: 37.751,
+          longitude: -97.822,
           timezone: 'America/Chicago',
           org: 'Unknown Organization',
           postal: '00000'
@@ -247,8 +244,8 @@ function createWorkerApp() {
           country: result.country || 'Unknown',
           postal: result.postal || 'Unknown',
           timezone: result.timezone || 'Unknown',
-          latitude: parseFloat(result.loc?.split(',')[0]) || 0,
-          longitude: parseFloat(result.loc?.split(',')[1]) || 0,
+          latitude: result.latitude || 0,
+          longitude: result.longitude || 0,
           org: result.org || 'Unknown',
           asn: result.org ? '13335' : 'Unknown',
           source: 'ipinfo',

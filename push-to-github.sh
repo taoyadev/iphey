@@ -20,8 +20,9 @@ git log --oneline
 
 echo ""
 echo "🔍 验证没有泄漏的 secrets..."
-if grep -r "1562dc669bda56\|kbjmXswH0vV9zMs1uuYSepwH1RAWWJsqgenjAtt8\|e999e86c8cef45ddd273a71a3d60c5562790f819674bfaa2e1df5225c76fad10a5a9ed10ff123096" . --exclude-dir=node_modules --exclude-dir=.git 2>/dev/null; then
-    echo "❌ 发现泄漏的 API keys！取消推送"
+# Check for common secret patterns (tokens, api keys, etc.)
+if grep -rE "(ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|[0-9a-f]{64})" . --exclude-dir=node_modules --exclude-dir=.git --exclude="*.sh" 2>/dev/null | grep -v "example\|template"; then
+    echo "❌ 发现可能泄漏的 API keys！取消推送"
     exit 1
 fi
 

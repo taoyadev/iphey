@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: Install frontend dependencies
-        run: cd apps/web-next && npm ci
+        run: cd apps/web-next && npm ci --legacy-peer-deps
 
       - name: Build Worker (Backend API)
         run: npm run build

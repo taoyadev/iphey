@@ -1,0 +1,31 @@
+name = "iphey-api"
+main = "src/worker.ts"
+account_id = "fe394f7c37b25babc4e351d704a6a97c"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# KV Namespace Bindings for caching
+[[kv_namespaces]]
+binding = "IP_CACHE"
+id = "267ef1060f5b4e99ab6ffce3e8898065"
+preview_id = "8ad5fb84fcdc499094b8bb33f29efdf6"
+
+# Environment variables (non-sensitive)
+[vars]
+NODE_ENV = "production"
+CACHE_TTL_MS = "300000"
+CLIENT_TIMEOUT_MS = "2500"
+LOG_LEVEL = "info"
+
+# Secrets (set via GitHub Actions or wrangler secret put command)
+# DO NOT commit API keys here!
+# Required secrets:
+# - IPINFO_TOKEN
+# - CLOUDFLARE_ACCOUNT_ID (can be set here as account_id above)
+# - CLOUDFLARE_RADAR_TOKEN
+# - ABUSEIPDB_API_KEY
+#
+# To set secrets locally:
+# wrangler secret put IPINFO_TOKEN
+# wrangler secret put CLOUDFLARE_RADAR_TOKEN
+# wrangler secret put ABUSEIPDB_API_KEY

@@ -1,0 +1,27 @@
+node_modules
+.dist
+coverage
+.env
+.env.*
+dist
+.DS_Store
+.vercel
+.vscode
+.idea
+*.log
+npm-debug.log*
+.deploy.env
+
+# Next.js
+.next/
+out/
+apps/web-next/.next/
+apps/web-next/out/
+
+# Wrangler
+.wrangler/
+.dev.vars
+
+# External libraries (not part of main app)
+mixvisit/
+SECRETS_TO_SET.md

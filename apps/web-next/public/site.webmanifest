@@ -1,0 +1,36 @@
+{
+  "name": "IPhey - Digital Identity Inspector",
+  "short_name": "IPhey",
+  "description": "Browser fingerprint and IP reputation analysis tool for digital identity inspection",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f17",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "utilities",
+    "security"
+  ],
+  "lang": "en",
+  "dir": "ltr"
+}

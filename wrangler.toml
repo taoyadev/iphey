@@ -1,0 +1,21 @@
+name = "iphey-api"
+main = "src/worker.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# KV namespace for caching
+[[kv_namespaces]]
+binding = "IP_CACHE"
+id = "06d882d1a9a946dbaf6204a542d5df58"
+
+[vars]
+NODE_ENV = "production"
+CACHE_BACKEND = "kv"
+CACHE_TTL_MS = "300000"
+LOG_LEVEL = "info"
+
+# Secrets (set via GitHub Actions or wrangler secret put command)
+# Required secrets:
+# - IPINFO_TOKEN
+# - CLOUDFLARE_RADAR_TOKEN
+# - ABUSEIPDB_API_KEY

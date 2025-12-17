@@ -1,0 +1,91 @@
+{
+  "name": "iphey",
+  "version": "0.1.0",
+  "description": "Digital identity and fingerprint inspection service",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "npm run web:build && tsc -p tsconfig.json",
+    "build:worker": "npm run web:build && tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint -c .eslintrc.json . --ext .ts,.tsx --max-warnings 0",
+    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint -c .eslintrc.json . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "coverage": "vitest run --coverage",
+    "health": "node scripts/health-check.js",
+    "web:dev": "npm run dev --prefix apps/web-next",
+    "web:build": "npm run build --prefix apps/web-next",
+    "web:preview": "npm run preview --prefix apps/web-next",
+    "web:lint": "npm run lint --prefix apps/web-next",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy",
+    "worker:tail": "wrangler tail",
+    "kv:create": "wrangler kv:namespace create IP_CACHE && wrangler kv:namespace create IP_CACHE --preview",
+    "kv:list": "wrangler kv:key list --namespace-id=$KV_ID",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "ip",
+    "fingerprint",
+    "express",
+    "typescript"
+  ],
+  "author": "iphey contributors",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "dependencies": {
+    "@hono/node-server": "1.19.6",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "hono": "4.10.6",
+    "ioredis": "5.8.2",
+    "lru-cache": "^11.2.2",
+    "pino": "^10.1.0",
+    "pino-http": "^11.0.0",
+    "undici": "^7.16.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251120.0",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.10.1",
+    "@types/pino-http": "^5.8.4",
+    "@types/supertest": "^6.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.46.4",
+    "@typescript-eslint/parser": "^8.46.4",
+    "@vitest/coverage-v8": "^4.0.8",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "husky": "9.1.7",
+    "lint-staged": "16.2.6",
+    "pino-pretty": "^13.1.2",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "ESLINT_USE_FLAT_CONFIG=false eslint -c .eslintrc.json --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}

@@ -11,7 +11,7 @@ Next.js 14 App Router implementation with multi-language support.
   - Chinese: `/zh/about`
   - Japanese: `/ja/about`
 - ✅ **TypeScript** + **Tailwind CSS**
-- ✅ **API Proxy** to backend (localhost:4310)
+- ✅ **API Proxy** to Worker API (localhost:8787)
 - ✅ **@tremor/react** UI components
 - ✅ **TanStack Query** for data fetching
 - ✅ **Framer Motion** for animations
@@ -32,7 +32,7 @@ npm run build
 npm start
 ```
 
-The development server runs on **http://localhost:3000**
+The development server runs on **http://localhost:3002**
 
 ## Multi-Language Setup
 
@@ -54,7 +54,7 @@ The development server runs on **http://localhost:3000**
 
 ## API Routes
 
-All `/api/*` requests are proxied to the backend server at `http://localhost:4310/api/*`
+All `/api/*` requests are proxied to the Worker API at `http://localhost:8787/api/*`
 
 Configure in `next.config.ts` → `rewrites()`
 
@@ -88,9 +88,10 @@ apps/web-next/
 
 ## Backend Dependency
 
-Requires IPhey backend API running on `localhost:4310`
+Requires IPhey Worker API running on `localhost:8787`
 
 Start backend:
+
 ```bash
 cd ../../ # Back to project root
 npm run dev

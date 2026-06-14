@@ -14,18 +14,27 @@ preview_id = "8ad5fb84fcdc499094b8bb33f29efdf6"
 [vars]
 NODE_ENV = "production"
 CACHE_TTL_MS = "300000"
+CACHE_STALE_TTL_MS = "1800000"
 CLIENT_TIMEOUT_MS = "2500"
+IPBOT_API_ORIGIN = "https://api.ipbot.com"
+IPBOT_TIMEOUT_MS = "4000"
+IPBOT_MAX_RETRIES = "3"
+CACHE_TTL_IPBOT_MS = "86400000"
+CACHE_TTL_IPBOT_HIGH_RISK_MS = "3600000"
 LOG_LEVEL = "info"
 
 # Secrets (set via GitHub Actions or wrangler secret put command)
 # DO NOT commit API keys here!
 # Required secrets:
+# - IPBOT_API_KEY
+# Optional fallback/enrichment secrets:
 # - IPINFO_TOKEN
 # - CLOUDFLARE_ACCOUNT_ID (can be set here as account_id above)
 # - CLOUDFLARE_RADAR_TOKEN
 # - ABUSEIPDB_API_KEY
 #
 # To set secrets locally:
+# wrangler secret put IPBOT_API_KEY
 # wrangler secret put IPINFO_TOKEN
 # wrangler secret put CLOUDFLARE_RADAR_TOKEN
 # wrangler secret put ABUSEIPDB_API_KEY

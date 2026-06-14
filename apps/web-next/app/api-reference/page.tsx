@@ -108,7 +108,7 @@ export default function APIReferencePage() {
             </code>
             <div className="font-mono text-accent text-sm mt-4 mb-2">Development</div>
             <code className="block bg-black/40 rounded-lg p-4 text-white font-mono text-sm">
-              http://localhost:4310/api/v1
+              http://localhost:8787/api/v1
             </code>
           </motion.div>
         </Section>

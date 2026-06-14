@@ -94,6 +94,6 @@ export interface NormalizedIpInsight {
   riskReasons?: string[];
   anycast?: boolean;
   bogon?: boolean;
-  source: 'ipinfo' | 'radar';
+  source: 'ipinfo' | 'radar' | 'ipbot';
   fetchedAt: number;
 }

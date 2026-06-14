@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Menu, X, Home, Fingerprint, BookOpen } from 'lucide-react';
 import { ThemeToggle } from '../ThemeToggle';
@@ -29,7 +30,7 @@ export const Header = () => {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             {/* Logo & Brand */}
-            <a href="/" className="flex items-center gap-3 group">
+            <Link href="/" className="flex items-center gap-3 group">
               <motion.div
                 className="flex items-center gap-3"
                 whileHover={{ scale: 1.05 }}
@@ -48,7 +49,7 @@ export const Header = () => {
                   </span>
                 </div>
               </motion.div>
-            </a>
+            </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-2">
@@ -85,11 +86,7 @@ export const Header = () => {
                 whileTap={{ scale: 0.9 }}
                 aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
               >
-                {isMobileMenuOpen ? (
-                  <X className="h-5 w-5" />
-                ) : (
-                  <Menu className="h-5 w-5" />
-                )}
+                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </motion.button>
             </div>
           </div>
@@ -125,9 +122,11 @@ export const Header = () => {
                     <div>
                       <div className="font-medium">{item.label}</div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {item.href === '#features' ? 'Explore features' :
-                         item.href === '/api-reference' ? 'API documentation' :
-                         'User documentation'}
+                        {item.href === '#features'
+                          ? 'Explore features'
+                          : item.href === '/api-reference'
+                            ? 'API documentation'
+                            : 'User documentation'}
                       </div>
                     </div>
                   </motion.a>

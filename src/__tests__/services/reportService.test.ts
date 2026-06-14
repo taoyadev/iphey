@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateReport } from '../../services/reportService';
-import { ApiError } from '../../middleware/errorHandler';
+import { ApiError } from '../../utils/apiError';
 import type { NormalizedIpInsight } from '../../types/ip';
 import type { ReportRequestBody } from '../../types/report';
 
@@ -19,11 +19,8 @@ const mockInsight: NormalizedIpInsight = {
   fetchedAt: Date.now(),
 };
 
-vi.mock('../../services/ipService', () => ({
-  lookupIpInsight: vi.fn(async () => mockInsight),
-}));
-
 describe('generateReport', () => {
+  const lookup = vi.fn(async () => mockInsight);
   const baseFingerprint: ReportRequestBody['fingerprint'] = {
     userAgent:
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -68,13 +65,13 @@ describe('generateReport', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    lookup.mockClear();
   });
 
   it('returns a comprehensive report for valid payloads', async () => {
     const payload: ReportRequestBody = { fingerprint: baseFingerprint };
 
-    const report = await generateReport(payload, '203.0.113.5');
+    const report = await generateReport(payload, '203.0.113.5', lookup);
 
     expect(report).toBeDefined();
     expect(report.verdict).toMatch(/trustworthy|suspicious|unreliable/);
@@ -90,6 +87,6 @@ describe('generateReport', () => {
       } as ReportRequestBody['fingerprint'],
     };
 
-    await expect(generateReport(invalidPayload, '203.0.113.5')).rejects.toBeInstanceOf(ApiError);
+    await expect(generateReport(invalidPayload, '203.0.113.5', lookup)).rejects.toBeInstanceOf(ApiError);
   });
 });

@@ -1,14 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { NormalizedIpInsight } from '../../types/ip';
 
-vi.mock('../ipService', () => ({
-  lookupIpInsight: vi.fn(),
-}));
-
 import { generateReport } from '../reportService';
-import { lookupIpInsight } from '../ipService';
 import type { FingerprintPayload } from '../../types/report';
-const lookupMock = vi.mocked(lookupIpInsight);
 
 const baseFingerprint: FingerprintPayload = {
   userAgent:
@@ -37,12 +31,14 @@ const baseInsight: NormalizedIpInsight = {
 };
 
 describe('generateReport', () => {
+  const lookupMock = vi.fn(async () => baseInsight);
+
   beforeEach(() => {
     lookupMock.mockResolvedValue(baseInsight);
   });
 
   it('returns a trustworthy verdict when signals are clean', async () => {
-    const result = await generateReport({ fingerprint: baseFingerprint, ip: '1.1.1.1' });
+    const result = await generateReport({ fingerprint: baseFingerprint, ip: '1.1.1.1' }, undefined, lookupMock);
 
     expect(result.verdict).toBe('trustworthy');
     expect(result.panels.browser.status).toBe('trustworthy');
@@ -56,18 +52,22 @@ describe('generateReport', () => {
       timezone: 'Europe/London',
     });
 
-    const result = await generateReport({
-      fingerprint: { ...baseFingerprint, timezone: 'America/Los_Angeles' },
-      ip: '1.1.1.1',
-    });
+    const result = await generateReport(
+      {
+        fingerprint: { ...baseFingerprint, timezone: 'America/Los_Angeles' },
+        ip: '1.1.1.1',
+      },
+      undefined,
+      lookupMock
+    );
 
     expect(result.panels.location.status).toBe('unreliable');
   });
 
   it('throws when payload is invalid', async () => {
     const invalidFingerprint: FingerprintPayload = { ...baseFingerprint, userAgent: '' };
-    await expect(generateReport({ fingerprint: invalidFingerprint, ip: '1.1.1.1' })).rejects.toThrowError(
-      /Invalid request body/
-    );
+    await expect(
+      generateReport({ fingerprint: invalidFingerprint, ip: '1.1.1.1' }, undefined, lookupMock)
+    ).rejects.toThrowError(/Invalid request body/);
   });
 });

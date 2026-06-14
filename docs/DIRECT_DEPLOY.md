@@ -28,7 +28,8 @@ CLOUDFLARE_WORKER_NAME=iphey-api
 # Workers KV (optional but recommended)
 KV_IP_CACHE=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# Upstream secrets that will be written via `wrangler secret`
+# Primary/fallback secrets that will be written via `wrangler secret`
+IPBOT_API_KEY=
 IPINFO_TOKEN=
 CLOUDFLARE_RADAR_TOKEN=
 
@@ -45,11 +46,11 @@ Load it with `source .deploy.env` (or use `direnv`). The deploy scripts assume t
 
 ## 3. Build & Deploy – Quick Commands
 
-From `/Volumes/SSD/dev/new/ip-dataset/iphey`:
+From `/Volumes/SSD/dev/ip-dataset/iphey`:
 
 ```bash
 # Backend Worker
-npm install
+npm ci
 npm run build:worker
 wrangler deploy \
   --name="$CLOUDFLARE_WORKER_NAME" \
@@ -57,16 +58,16 @@ wrangler deploy \
 
 # Frontend (Next.js on Pages)
 cd apps/web-next
-npm install
+npm ci --legacy-peer-deps
 npm run build
 cd ../../
 CLOUDFLARE_ACCOUNT_ID=$CLOUDFLARE_ACCOUNT_ID \
   CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN \
-  npx wrangler pages deploy .vercel/output/static \
+  npx wrangler pages deploy apps/web-next/out \
   --project-name="$CLOUDFLARE_PAGES_PROJECT"
 ```
 
-For Pages, the build step automatically emits `.vercel/output/static` via the Next-on-Pages adapter configured in `apps/web-next`. If you prefer the stock adapter, run `npx @cloudflare/next-on-pages` after `npm run build` and deploy the generated output folder.
+For Pages, the build step emits `apps/web-next/out`, matching the GitHub Actions workflow.
 
 ## 4. Worker Secrets & KV Bindings
 
@@ -76,8 +77,8 @@ wrangler kv:namespace create IP_CACHE
 wrangler kv:namespace create IP_CACHE --preview
 
 # Secrets (each command will prompt for the value)
+wrangler secret put IPBOT_API_KEY
 wrangler secret put IPINFO_TOKEN
-wrangler secret put CLOUDFLARE_ACCOUNT_ID
 wrangler secret put CLOUDFLARE_RADAR_TOKEN
 ```
 
@@ -99,7 +100,8 @@ It validates Wrangler login, runs `npm run build:worker`, and deploys the Worker
 # Worker health
 curl "$PRODUCTION_API_URL/api/health"
 
-# Radar token check is included in the health payload
+# Provider status
+curl "$PRODUCTION_API_URL/api/v1/services/status"
 
 # Pages preview (replace route as needed)
 curl -I "$PRODUCTION_WEB_URL"
@@ -112,12 +114,12 @@ Back in the Cloudflare dashboard, confirm:
 
 ## 7. 故障排查 (Common Issues)
 
-| Error | Fix |
-| --- | --- |
-| `Error: In a non-interactive environment... set a CLOUDFLARE_API_TOKEN` | Export `CLOUDFLARE_API_TOKEN` (from `.deploy.env`) before running `wrangler` |
-| `Request failed: 403` during KV operations | Ensure the API token has “Account > Workers KV Storage: Edit” permission |
-| Next.js deploy serves blank page | Make sure you ran `npm run web:build` inside `apps/web-next` or `npx @cloudflare/next-on-pages` before deploying `.vercel/output/static` |
-| Frontend showing `::1` for IP | The Worker still sees the Pages origin; add `cf-connecting-ip` to the request when testing locally |
+| Error                                                                   | Fix                                                                                                |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `Error: In a non-interactive environment... set a CLOUDFLARE_API_TOKEN` | Export `CLOUDFLARE_API_TOKEN` (from `.deploy.env`) before running `wrangler`                       |
+| `Request failed: 403` during KV operations                              | Ensure the API token has “Account > Workers KV Storage: Edit” permission                           |
+| Next.js deploy serves blank page                                        | Make sure `npm run web:build` generated `apps/web-next/out` before deploying                       |
+| Frontend showing `::1` for IP                                           | The Worker still sees the Pages origin; add `cf-connecting-ip` to the request when testing locally |
 
 ## 8. API 示例 (Post-Deploy Smoke Tests)
 
@@ -144,6 +146,6 @@ curl -X POST "$PRODUCTION_API_URL/api/v1/report" \
       }'
 ```
 
-Successful responses confirm Workers secrets are wired, KV caching is available, and the Pages client can safely point `NEXT_PUBLIC_API_URL` to the Worker hostname.
+Successful responses confirm the IPbot secret is wired, KV caching is available, and the Pages client can safely point `NEXT_PUBLIC_API_URL` to the Worker hostname.
 
 For a deeper dive (build order, CDN cache purge, historical log), see `CLOUDFLARE_DEPLOYMENT.md` and `docs/PROJECT_SPEC.md`.

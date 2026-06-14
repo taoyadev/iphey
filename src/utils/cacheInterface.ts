@@ -1,6 +1,6 @@
 /**
  * Abstract Cache Interface
- * Supports multiple cache backends (Memory, Redis)
+ * Supports cache backends used by local tests and Cloudflare Workers.
  */
 
 export interface CacheEntry<T> {
@@ -27,4 +27,4 @@ export interface CacheAdapter<T = unknown> {
 /**
  * Cache Backend Type
  */
-export type CacheBackend = 'memory' | 'redis';
+export type CacheBackend = 'memory' | 'kv';

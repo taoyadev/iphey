@@ -42,7 +42,7 @@ export interface ReportResponse {
   panels: ReportPanels;
   ip?: string;
   fetchedAt: number;
-  source: 'ipinfo' | 'radar' | 'mixed';
+  source: 'ipinfo' | 'radar' | 'ipbot' | 'mixed';
   enhanced?: {
     browser: EnhancedPanelData;
     location: EnhancedPanelData;

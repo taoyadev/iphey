@@ -12,10 +12,19 @@ id = "06d882d1a9a946dbaf6204a542d5df58"
 NODE_ENV = "production"
 CACHE_BACKEND = "kv"
 CACHE_TTL_MS = "300000"
+CACHE_STALE_TTL_MS = "1800000"
+CLIENT_TIMEOUT_MS = "2500"
+IPBOT_API_ORIGIN = "https://api.ipbot.com"
+IPBOT_TIMEOUT_MS = "4000"
+IPBOT_MAX_RETRIES = "3"
+CACHE_TTL_IPBOT_MS = "86400000"
+CACHE_TTL_IPBOT_HIGH_RISK_MS = "3600000"
 LOG_LEVEL = "info"
 
 # Secrets (set via GitHub Actions or wrangler secret put command)
 # Required secrets:
+# - IPBOT_API_KEY
+# Optional fallback/enrichment secrets:
 # - IPINFO_TOKEN
 # - CLOUDFLARE_RADAR_TOKEN
 # - ABUSEIPDB_API_KEY

@@ -2,7 +2,9 @@ import { logger } from '../utils/logger';
 import { requestDeduplicator } from '../utils/requestDeduplication';
 import type { Env } from '../worker/types';
 import type { IpInfoDetails, NormalizedIpInsight, RadarIpResponse } from '../types/ip';
+import type { IpbotResult } from '../types/ipbot';
 import { normalizeIpInfo, normalizeRadar } from './ipNormalization';
+import { createIpbotLookupService, ipbotTtlMs, normalizeIpbot } from './ipbotService';
 import { createCache } from '../utils/cacheFactory.worker';
 
 const CF_BASE = 'https://api.cloudflare.com/client/v4';
@@ -17,12 +19,35 @@ export const createWorkerIpService = (env: Env) => {
   const staleTtlMs = parseNumber(env.CACHE_STALE_TTL_MS, 30 * 60 * 1000);
   const backend = env.CACHE_BACKEND === 'kv' ? 'kv' : 'memory';
   const clientTimeout = parseNumber(env.CLIENT_TIMEOUT_MS, 2500);
+  const ipbotOrigin = env.IPBOT_API_ORIGIN ?? 'https://api.ipbot.com';
+  const ipbotTimeoutMs = parseNumber(env.IPBOT_TIMEOUT_MS, 4000);
+  const ipbotMaxRetries = parseNumber(env.IPBOT_MAX_RETRIES, 3);
+  const ipbotTtlMsClean = parseNumber(env.CACHE_TTL_IPBOT_MS, 24 * 60 * 60 * 1000);
+  const ipbotTtlMsHighRisk = parseNumber(env.CACHE_TTL_IPBOT_HIGH_RISK_MS, 60 * 60 * 1000);
 
   const ipCache = createCache<NormalizedIpInsight>('ip-insight', env.IP_CACHE, {
     backend,
     ttlMs,
     staleTtlMs,
   });
+  const ipbotCache = createCache<IpbotResult>('ipbot', env.IP_CACHE, {
+    backend,
+    ttlMs: ipbotTtlMsClean,
+    staleTtlMs: ipbotTtlMsClean,
+  });
+  const ipbotService = env.IPBOT_API_KEY
+    ? createIpbotLookupService({
+        cache: ipbotCache,
+        client: {
+          origin: ipbotOrigin,
+          apiKey: env.IPBOT_API_KEY,
+          timeoutMs: ipbotTimeoutMs,
+          maxRetries: ipbotMaxRetries,
+        },
+        cleanTtlMs: ipbotTtlMsClean,
+        highRiskTtlMs: ipbotTtlMsHighRisk,
+      })
+    : null;
 
   const fetchWithTimeout = async (url: string, init: RequestInit = {}) => {
     const controller = new AbortController();
@@ -84,17 +109,44 @@ export const createWorkerIpService = (env: Env) => {
     return payload.result;
   };
 
+  const lookupIpbotInsight = async (ip: string): Promise<{ insight: NormalizedIpInsight; ttlMs: number } | null> => {
+    if (!ipbotService) {
+      return null;
+    }
+
+    const result = await ipbotService.lookupIP(ip);
+    return {
+      insight: normalizeIpbot(result),
+      ttlMs: ipbotTtlMs(result.data, ipbotTtlMsClean, ipbotTtlMsHighRisk),
+    };
+  };
+
   const revalidateIpInsight = async (ip: string): Promise<void> => {
     try {
       let insight: NormalizedIpInsight | null = null;
+      let cacheTtlMs = ttlMs;
+      let cacheStaleTtlMs = staleTtlMs;
 
       try {
-        const ipinfo = await fetchIpInfoWorker(ip);
-        if (ipinfo) {
-          insight = normalizeIpInfo(ipinfo);
+        const ipbot = await lookupIpbotInsight(ip);
+        if (ipbot) {
+          insight = ipbot.insight;
+          cacheTtlMs = ipbot.ttlMs;
+          cacheStaleTtlMs = ipbot.ttlMs;
         }
       } catch (error) {
-        logger.warn({ err: error }, 'ipinfo revalidation failed');
+        logger.warn({ err: error }, 'IPbot revalidation failed');
+      }
+
+      if (!insight) {
+        try {
+          const ipinfo = await fetchIpInfoWorker(ip);
+          if (ipinfo) {
+            insight = normalizeIpInfo(ipinfo);
+          }
+        } catch (error) {
+          logger.warn({ err: error }, 'ipinfo revalidation failed');
+        }
       }
 
       if (!insight) {
@@ -109,7 +161,7 @@ export const createWorkerIpService = (env: Env) => {
       }
 
       if (insight) {
-        await ipCache.set(ip, insight);
+        await ipCache.set(ip, insight, cacheTtlMs, cacheStaleTtlMs);
         logger.debug({ ip }, 'Background revalidation completed');
       }
     } catch (error) {
@@ -137,14 +189,29 @@ export const createWorkerIpService = (env: Env) => {
       }
 
       let insight: NormalizedIpInsight | null = null;
+      let cacheTtlMs = ttlMs;
+      let cacheStaleTtlMs = staleTtlMs;
 
       try {
-        const ipinfo = await fetchIpInfoWorker(ip);
-        if (ipinfo) {
-          insight = normalizeIpInfo(ipinfo);
+        const ipbot = await lookupIpbotInsight(ip);
+        if (ipbot) {
+          insight = ipbot.insight;
+          cacheTtlMs = ipbot.ttlMs;
+          cacheStaleTtlMs = ipbot.ttlMs;
         }
       } catch (error) {
-        logger.warn({ err: error }, 'ipinfo lookup failed');
+        logger.warn({ err: error }, 'IPbot lookup failed');
+      }
+
+      if (!insight) {
+        try {
+          const ipinfo = await fetchIpInfoWorker(ip);
+          if (ipinfo) {
+            insight = normalizeIpInfo(ipinfo);
+          }
+        } catch (error) {
+          logger.warn({ err: error }, 'ipinfo lookup failed');
+        }
       }
 
       if (!insight) {
@@ -178,7 +245,7 @@ export const createWorkerIpService = (env: Env) => {
         logger.warn({ ip }, 'No IP data source available, using defaults');
       }
 
-      await ipCache.set(ip, finalInsight);
+      await ipCache.set(ip, finalInsight, cacheTtlMs, cacheStaleTtlMs);
       return finalInsight;
     });
   };
@@ -209,5 +276,6 @@ export const createWorkerIpService = (env: Env) => {
   return {
     lookupIpInsight,
     verifyRadarToken,
+    hasIpbot: Boolean(ipbotService),
   };
 };

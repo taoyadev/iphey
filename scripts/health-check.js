@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Simple smoke check for API readiness.
 
-const baseUrl = process.env.API_URL || 'http://localhost:4310';
+const baseUrl = process.env.API_URL || 'http://localhost:8787';
 const timeoutMs = Number(process.env.HEALTH_TIMEOUT_MS || 4000);
 
 const withTimeout = (promise, ms, label) => {

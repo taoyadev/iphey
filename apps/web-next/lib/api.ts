@@ -6,7 +6,9 @@
 import type { EnhancedIPResponse, ServiceStatus, ThreatIntelligence, ASNAnalysis } from '@/types/report';
 
 // Use environment variable for API URL, fallback to relative path for development
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+export const getApiBaseUrl = () => process.env.NEXT_PUBLIC_API_URL || '';
+
+const API_BASE_URL = getApiBaseUrl();
 const API_BASE = `${API_BASE_URL}/api/v1`;
 
 // Check if we're in demo mode (no backend API configured)

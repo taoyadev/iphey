@@ -1,6 +1,6 @@
 import type { ReportRequestBody, ReportResponse } from '../../types/report';
 import { reportRequestSchema } from '../../schemas/report';
-import { ApiError } from '../../middleware/errorHandler';
+import { ApiError } from '../../utils/apiError';
 import { evaluateBrowser } from './browserEvaluator';
 import { evaluateLocation } from './locationEvaluator';
 import { evaluateIp } from './ipEvaluator';

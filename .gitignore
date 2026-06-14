@@ -11,6 +11,7 @@ dist
 *.log
 npm-debug.log*
 .deploy.env
+local.env.txt
 
 # Next.js
 .next/

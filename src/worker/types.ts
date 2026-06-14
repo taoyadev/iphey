@@ -3,6 +3,12 @@ import type { KVNamespace } from '@cloudflare/workers-types';
 export interface Env {
   IP_CACHE: KVNamespace;
   IPINFO_TOKEN?: string;
+  IPBOT_API_ORIGIN?: string;
+  IPBOT_API_KEY?: string;
+  IPBOT_TIMEOUT_MS?: string;
+  IPBOT_MAX_RETRIES?: string;
+  CACHE_TTL_IPBOT_MS?: string;
+  CACHE_TTL_IPBOT_HIGH_RISK_MS?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_RADAR_TOKEN?: string;
   ABUSEIPDB_API_KEY?: string;
@@ -15,5 +21,4 @@ export interface Env {
   CACHE_WARMING_DELAY_MS?: string;
   LOG_LEVEL?: string;
   CLIENT_TIMEOUT_MS?: string;
-  PORT?: string;
 }

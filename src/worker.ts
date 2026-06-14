@@ -9,6 +9,7 @@ import { logger as honoLogger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { cacheWarmer } from './utils/cacheWarming';
 import { logger } from './utils/logger';
+import { ApiError } from './utils/apiError';
 import { generateReportWithLookup } from './services/report';
 import type { ExecutionContext, ScheduledEvent } from '@cloudflare/workers-types';
 import type { ReportRequestBody } from './types/report';
@@ -192,12 +193,14 @@ function createWorkerApp() {
       return c.json(report);
     } catch (error) {
       logger.error({ err: error }, 'Report generation failed');
+      const status = error instanceof ApiError ? 400 : 500;
       return c.json(
         {
-          error: 'Internal Server Error',
+          error: error instanceof ApiError ? error.message : 'Internal Server Error',
+          details: error instanceof ApiError ? error.details : undefined,
           message: error instanceof Error ? error.message : 'Unknown error',
         },
-        500
+        status
       );
     }
   });
@@ -284,7 +287,10 @@ function createWorkerApp() {
           overall_score: result.riskScore || 5,
           overall_level: (result.riskScore || 0) > 50 ? 'high' : (result.riskScore || 0) > 25 ? 'medium' : 'low',
           factors: result.riskReasons || ['No significant risk factors detected'],
-          recommendation: (result.riskScore || 0) > 50 ? 'High risk. Additional verification recommended.' : 'Low risk. Normal processing recommended.',
+          recommendation:
+            (result.riskScore || 0) > 50
+              ? 'High risk. Additional verification recommended.'
+              : 'Low risk. Normal processing recommended.',
         },
         privacy: result.privacy || null,
         sources_used: [result.source || 'ipinfo'],
@@ -385,7 +391,10 @@ function createWorkerApp() {
           overall_score: result.riskScore || 5,
           overall_level: (result.riskScore || 0) > 50 ? 'high' : (result.riskScore || 0) > 25 ? 'medium' : 'low',
           factors: result.riskReasons || ['No significant risk factors detected'],
-          recommendation: (result.riskScore || 0) > 50 ? 'High risk. Additional verification recommended.' : 'Low risk. Normal processing recommended.',
+          recommendation:
+            (result.riskScore || 0) > 50
+              ? 'High risk. Additional verification recommended.'
+              : 'Low risk. Normal processing recommended.',
         },
         privacy: result.privacy || null,
         sources_used: [result.source || 'ipinfo'],
@@ -542,9 +551,10 @@ function createWorkerApp() {
       const radarHealthy = await services.verifyRadarToken();
 
       return c.json({
-        geolocation: true,
-        threat_intelligence: radarHealthy,
-        asn_analysis: radarHealthy,
+        geolocation: services.hasIpbot || Boolean(c.env.IPINFO_TOKEN) || radarHealthy,
+        threat_intelligence: services.hasIpbot || radarHealthy,
+        asn_analysis: services.hasIpbot || radarHealthy,
+        ipbot: services.hasIpbot,
         ipinfo: !!c.env.IPINFO_TOKEN,
         radar: !!c.env.CLOUDFLARE_RADAR_TOKEN,
         abuseipdb: !!c.env.ABUSEIPDB_API_KEY,
@@ -555,6 +565,7 @@ function createWorkerApp() {
         geolocation: false,
         threat_intelligence: false,
         asn_analysis: false,
+        ipbot: false,
         ipinfo: false,
         radar: false,
         abuseipdb: false,

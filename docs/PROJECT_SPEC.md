@@ -1,90 +1,70 @@
-# IPhey Browser Fingerprint Intelligence — Project Spec (Draft v1 · 2025-11-13)
-
+# IPhey Browser Fingerprint Intelligence
 
 ## Needs
-- ipinfo.io Batch API access token (`IPINFO_TOKEN`) stored in your `.env`/secrets manager.
-- GitHub API access for automation (generate a personal access token and keep it outside the repo).
-- Cloudflare Radar account ID + API token for `/tokens/verify` (configure via `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_RADAR_TOKEN`).
 
+- IPbot API key (`IPBOT_API_KEY`) stored in Cloudflare Worker/GitHub secrets.
+- Cloudflare account/API token for Worker and Pages deployment.
+- Optional fallback/enrichment credentials: `IPINFO_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_RADAR_TOKEN`, `ABUSEIPDB_API_KEY`.
 
+## Vision & Success Criteria
 
-## 1. Vision & Success Criteria
-- Provide a one-stop "digital identity" report that blends IP reputation, location fidelity, and browser fingerprint consistency, surpassing the reference UI shared by the user.
-- Empower analysts and privacy-conscious users to validate their setup in <3 seconds with clear scoring, remediation hints, and exportable artifacts.
-- Success signals: <400 ms cold API latency for `/v1/report`, 99% uptime, and user feedback that the UI feels more trustworthy and responsive than the reference site.
+- Provide a one-stop digital identity report that blends IP reputation, location fidelity, and browser fingerprint consistency.
+- Let fraud analysts, privacy-conscious users, and QA engineers validate a browser/session setup quickly with clear scoring and remediation hints.
+- Keep the production API on a single Cloudflare Worker runtime so provider logic cannot drift between Node and Worker implementations.
 
-## 2. Goals / Non-Goals
-| Goals | Non-Goals |
-| --- | --- |
-| Ship a typed Express (Node 18+) API with clear `routes/`, `clients/`, `middleware/`, `utils/`, `types/` folders per AGENTS.md | Building a separate mobile app |
-| Mirror the fingerprint panels (Browser, Location, IP, Hardware, Software) with improved accessibility, skeleton loaders, and dark-mode ready tokens | Re-implementing low-level fingerprinting logic from scratch — we will reuse `creepjs` where practical |
-| Integrate IP data via ipinfo.io (primary) with Cloudflare Radar (fallback) and gracefully handle quota exhaustion | Running arbitrary third-party scanners or storing historical user data |
-| Enforce env validation via `src/config.ts`, lean logging with PII redaction, and never commit secrets | Building an on-prem deployment installer in this phase |
+## Goals / Non-Goals
 
-## 3. Personas & Core Use Cases
-- **Fraud Ops Analyst**: needs to vet proxy pools quickly before running automation.
-- **Privacy Enthusiast**: validates that their spoofed fingerprint truly mimics residential traffic.
-- **QA Engineer**: regression-tests browser/extension combos and exports before/after diffs.
+| Goals                                                                                                                  | Non-Goals                                                              |
+| ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Ship a typed Cloudflare Worker API with clear `clients/`, `services/`, `utils/`, and `types/` boundaries               | Building a separate mobile app                                         |
+| Use IPbot as the primary IP intelligence provider with ipinfo/Radar as optional fallback                               | Running arbitrary third-party scanners or storing historical user data |
+| Mirror the fingerprint panels (Browser, Location, IP, Hardware, Software) with accessible UI and deterministic scoring | Re-implementing low-level fingerprinting logic from scratch            |
+| Keep secrets out of git and configure production through Worker/GitHub secrets                                         | Maintaining a parallel Node/Express production runtime                 |
 
-Use cases include: single-click "Check my identity" report, detailed breakdown tabs, downloadable JSON snapshot, and guidance when mismatches are detected (e.g., timezone vs. IP location).
+## System Architecture
 
-## 4. Product Surface Outline
-1. **Landing Panel** — hero verdict (Trustworthy/Suspicious/Unreliable) + CTA to rerun checks.
-2. **Five Insight Cards** — Browser, Location, IP Address, Hardware, Software (click/scroll targets).
-3. **Detail Tabs** — replicating reference layout but with modern tokens (CSS variables, `prefers-reduced-motion`), skeleton loaders, and copy-to-clipboard icons reused from `creepjs` assets.
-4. **Extended Checks** — link to `/leaks` (to be backed by our API), plus shareable permalink.
+- **Frontend**: Next.js 14 app under `apps/web-next`, deployed to Cloudflare Pages. It consumes the Worker API through `NEXT_PUBLIC_API_URL`.
+- **Backend**: Single Cloudflare Worker. Entry point: `src/worker.ts`; runtime bindings: `src/worker/types.ts`; deployment config: `wrangler.toml`.
+- **Cache**: Cloudflare KV via `IP_CACHE` in production; memory cache for tests/local tooling.
+- **IP Provider Chain**: `src/services/ipService.worker.ts` uses IPbot first, then ipinfo/Radar fallback when configured.
+- **IPbot Client**: `src/clients/ipbotClient.ts` calls `GET {origin}/v1/ip/{ip}` with `X-API-Key`, parses `X-RateLimit-*`, honors `Retry-After`, and retries 429/5xx/network failures.
 
-## 5. System Architecture
-- **Frontend**: Vite + TypeScript + Vanilla Extract (or Tailwind) SPA, hosted from `frontend/` and built into `/dist/public`. It consumes our API via `fetch`.
-- **Backend**: Single Express app (Node 18). Entry point `src/server.ts`; environment handling in `src/config.ts`; routers under `src/routes/**`; Zod schemas under `src/schemas/`.
-- **External Clients**:
-  - `src/clients/ipinfo.ts` — hits `https://ipinfo.io/batch` with configurable token; caches responses per IP for 5 minutes.
-  - `src/clients/cloudflareRadar.ts` — fallback using Radar IP intelligence (auth via bearer token); implements same DTO as ipinfo client.
-  - `src/clients/creepjs.ts` — wraps the `/Volumes/SSD/dev/new/ip-dataset/creepjs` assets (to be vendored / symlinked) to evaluate browser fingerprint entropy on the client, sending only summarized scores back to the API.
-- **Data Flow**: client collects browser metrics via `creepjs`, posts to `/v1/report`. Server hydrates IP intelligence (ipinfo primary, Radar fallback on 4xx/5xx) and enriches with heuristics before responding.
+## API Surface
 
-## 6. API Surface (initial)
-| Route | Method | Description |
-| --- | --- | --- |
-| `/health` | GET | build/version + upstream dependency check |
-| `/v1/report` | POST | Accepts browser fingerprint payload (UA, WebGL, Canvas, timezone, fonts) + optional IP override; responds with verdict tiers and panel data |
-| `/v1/ip/:ip` | GET | Single IP lookup (uses cache) mainly for CLI/debug |
-| `/v1/leaks` | POST | (Phase 2) Proxy to my-ip-data for leak tests |
+| Route                     | Method | Description                                                       |
+| ------------------------- | ------ | ----------------------------------------------------------------- |
+| `/api/health`             | GET    | Worker health and cache metadata                                  |
+| `/api/v1/services/status` | GET    | Provider readiness including IPbot                                |
+| `/api/v1/ip`              | GET    | Client IP lookup using Cloudflare headers when present            |
+| `/api/v1/ip/:ip`          | GET    | Normalized IP lookup for a supplied IP                            |
+| `/api/v1/ip/enhanced`     | GET    | Client IP enriched response for frontend compatibility            |
+| `/api/v1/ip/:ip/enhanced` | GET    | Supplied IP enriched response for frontend compatibility          |
+| `/api/v1/report`          | POST   | Browser fingerprint report with IP intelligence and panel scoring |
 
-All payloads flow through Zod schemas stored in `src/schemas/report.ts` etc., ensuring shape parity between clients and routers.
+## External Integrations & Secrets
 
-## 7. Data Modeling & Scoring
-- **Score Categories**: Browser authenticity, Location coherence, IP reputation, Hardware consistency, Software hygiene.
-- Each category emits `status` (`trustworthy | suspicious | unreliable`), `score` (0–100), `signals` (array of bullet strings), plus `remediation` tip.
-- Global verdict is derived via weighted average (Browser + IP weigh 30% each, others 13.3% each).
+- `IPBOT_API_KEY`: primary provider secret. Store with `wrangler secret put IPBOT_API_KEY` and GitHub Actions secret `IPBOT_API_KEY`.
+- `IPINFO_TOKEN`: optional fallback.
+- `CLOUDFLARE_RADAR_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`: optional Radar fallback and verification.
+- `ABUSEIPDB_API_KEY`: optional enrichment for helper services.
 
-## 8. External Integrations & Secrets
-- `IPINFO_TOKEN` — stored in `.env`, validated by `src/config.ts`. Never hard-code (the sample token provided by the requester must stay local).
-- `CLOUDFLARE_RADAR_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` — also env-driven; use Cloudflare `/client/v4/accounts/{id}/tokens/verify` for startup health-check only.
-- GitHub token (taoyadev) is **not** persisted; if automation needs GitHub data later, add a scoped env var and document in `docs/CONFIG.md`.
-- Config file enumerates required vars, sensible defaults (e.g., `PORT=4310`), and enforces runtime failures when unset.
+Never hard-code keys or commit `.env`/deployment secret files.
 
-## 9. Security, Privacy, Compliance
-- Never persist raw IPs/fingerprints; only return aggregates to the requesting session.
-- Apply PII-safe logging: redact IP in logs via `logger.info({ ipHash }, 'ip lookup')` (sha256 truncated).
-- Enable rate limiting + basic token bucket to prevent abuse when self-hosted.
-- Serve frontend with strict CSP, disable inline scripts (bundle everything), and include `prefetch` hints for heavy assets just like the reference HTML.
+## Scoring & Cache Policy
 
-## 10. Tooling & Quality Gates
-- `npm run dev` / `build` / `start` / `lint` exactly as defined in AGENTS.md.
-- Testing via Vitest + Supertest (`src/**/__tests__`). Aim for 80% line coverage on `routes` + `clients`; add coverage comments to `docs/coverage.md` once tests ship.
-- Mock ipinfo/radar in tests via fixtures under `src/clients/__mocks__/`.
+- Browser, Location, IP Address, Hardware, and Software panels each emit `status`, `score`, and `signals`.
+- Global verdict is derived from weighted panel scores.
+- Clean IPbot results default to 24h cache TTL.
+- High-risk IPbot results default to 1h cache TTL so suspicious IPs are re-evaluated sooner.
+- Normalized Worker responses are cached in KV with the provider-appropriate TTL.
 
-## 11. Implementation Milestones
-1. **Scaffolding (Day 0-1)**: Init package, tsconfig, lint config, base Express skeleton, env validation, `/health` route.
-2. **IP Intelligence (Day 1-2)**: Clients for ipinfo + Radar, caching, `/v1/ip` + `/v1/report` basic IP enrichment, unit tests.
-3. **Fingerprint Ingestion (Day 2-3)**: Integrate `creepjs` front-end assets, define schema for browser data, scoring heuristics, UI wiring for Browser/IP cards.
-4. **Full UI Polish (Day 3-4)**: Remaining panels, skeleton loading states, shareable permalink, extended leaks link stub.
-5. **Hardening (Day 4+)**: Observability, docs (`docs/ROADMAP.md`, `docs/CONFIG.md`), deployment scripts.
+## Quality Gates
 
-## 12. Open Questions
-- Confirm availability of `/Volumes/SSD/dev/new/ip-dataset/creepjs`; if absent, import directly from upstream repo.
-- Clarify whether `/leaks` should proxy to an existing upstream or run local heuristics.
-- Decide on hosting (Vercel? Fly?). For now we assume container-based deploy with build artifact under `dist/`.
+- Pull requests run typecheck, API lint, API tests, and frontend lint.
+- Pushes to `main` run those gates before Worker/Pages deploy.
+- Tests use injected fetch/cache functions and dummy env so they do not call real upstream APIs.
 
-_Prepared by Codex assistant — pending user feedback before locking scope._
+## Open Questions
+
+- Confirm production custom domains for Worker and Pages.
+- Decide whether optional fallback providers remain long-term after IPbot production data has enough uptime evidence.

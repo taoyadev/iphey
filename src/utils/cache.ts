@@ -52,11 +52,17 @@ export class MemoryCache<T> implements CacheAdapter<T> {
     const staleWindow = staleTtlMs ?? this.staleTtl;
     const now = Date.now();
 
-    this.cache.set(key, {
-      data: value,
-      staleAt: now + freshTtl,
-      expiresAt: now + staleWindow,
-    });
+    this.cache.set(
+      key,
+      {
+        data: value,
+        staleAt: now + freshTtl,
+        expiresAt: now + staleWindow,
+      },
+      // Honour the per-call window for LRU eviction, otherwise entries are
+      // dropped after the construction-time TTL regardless of staleWindow.
+      { ttl: staleWindow }
+    );
   }
 
   delete(key: string): void {

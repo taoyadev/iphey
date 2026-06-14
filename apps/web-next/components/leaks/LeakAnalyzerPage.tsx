@@ -12,7 +12,7 @@ import { PageLayout } from '@/components/Layout/PageLayout';
 import { Section } from '@/components/Layout/Section';
 import { PanelCard } from '@/components/PanelCard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { fetchClientEnhancedIP } from '@/lib/api';
+import { fetchClientEnhancedIP, getApiBaseUrl } from '@/lib/api';
 import { LocationMap } from '@/components/LocationMap';
 
 const createQueryClient = () =>
@@ -27,7 +27,12 @@ const createQueryClient = () =>
 
 const loadReport = async () => {
   const fingerprint = await collectFingerprint();
-  const response = await fetch('/api/v1/report', {
+  const apiUrl = getApiBaseUrl();
+  if (!apiUrl && process.env.NODE_ENV === 'production') {
+    throw new Error('Backend API not configured. Set NEXT_PUBLIC_API_URL before deploying the frontend.');
+  }
+
+  const response = await fetch(`${apiUrl}/api/v1/report`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fingerprint }),

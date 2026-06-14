@@ -1,35 +1,40 @@
 # Configuration & Secrets
 
-All runtime configuration flows through `src/config.ts` (validated via Zod). The service refuses to boot unless an IP intelligence provider is available. Use the table below when curating `.env` or deployment secrets:
+Cloudflare Worker runtime configuration comes from `wrangler.toml` vars and Worker secrets. Local tooling that imports `src/config.ts` is still validated via Zod and refuses to run unless an IP intelligence provider is available.
 
-| Variable                                  | Required    | Description                                                                                                                                                        |
-| ----------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `NODE_ENV`                                | optional    | `development`, `test`, or `production` (defaults to `development`).                                                                                                |
-| `PORT`                                    | optional    | Port for the Express server (default `4310`).                                                                                                                      |
-| `IPINFO_TOKEN`                            | conditional | Primary IP intelligence source. Required unless the Cloudflare Radar pair is provided. Keep this token outside git; sample token from the brief must remain local. |
-| `CLOUDFLARE_ACCOUNT_ID`                   | conditional | Required together with `CLOUDFLARE_RADAR_TOKEN` to enable Radar lookup/fallback + health verification.                                                             |
-| `CLOUDFLARE_RADAR_TOKEN`                  | conditional | Bearer token used for Radar’s `/intelligence/ip` + `/tokens/verify` endpoints.                                                                                     |
-| `LOG_LEVEL`                               | optional    | Pino log level (`info` default).                                                                                                                                   |
-| `CACHE_TTL_MS`                            | optional    | LRU cache TTL for IP insights (default 300000 ms).                                                                                                                 |
-| `CACHE_MAX_ITEMS`                         | optional    | Max entries stored in the in-memory cache (default 500).                                                                                                           |
-| `CLIENT_TIMEOUT_MS`                       | optional    | HTTP client timeout when calling upstream APIs (default 2500 ms).                                                                                                  |
-| `CREEPJS_ASSETS_PATH`                     | optional    | Path to fingerprint helper assets; defaults to `../creepjs/dist` for compatibility with the local dataset.                                                         |
-| `CORS_ALLOWED_ORIGINS`                    | optional    | Comma-separated allowlist for CORS. Defaults to `*` in dev; set explicit origins in production (Pages domain + Worker domain).                                     |
-| `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` | optional    | Request limiter window + max requests (defaults: 1 minute / 60).                                                                                                   |
-| `CACHE_STALE_TTL_MS`                      | optional    | Duration stale entries remain readable while revalidation runs (default 30 minutes, Worker only).                                                                  |
-| `SIGNING_SECRET`                          | optional    | If set, `/api/v1/report` requires `X-IPHEY-SIGNATURE` (HMAC-SHA256 over JSON body) for private integrations.                                                       |
+| Variable                       | Required    | Description                                                                                                   |
+| ------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                     | optional    | `development`, `test`, or `production` (defaults to `development`).                                           |
+| `IPBOT_API_ORIGIN`             | optional    | IPbot API origin. Defaults to `https://api.ipbot.com`.                                                        |
+| `IPBOT_API_KEY`                | conditional | Primary IP intelligence source for production. Store as a Worker/GitHub secret, never in repo files.          |
+| `IPBOT_TIMEOUT_MS`             | optional    | IPbot request timeout (default 4000 ms).                                                                      |
+| `IPBOT_MAX_RETRIES`            | optional    | IPbot retry count for 429/5xx/network errors (default 3).                                                     |
+| `CACHE_TTL_IPBOT_MS`           | optional    | Clean IPbot result TTL (default 24 hours).                                                                    |
+| `CACHE_TTL_IPBOT_HIGH_RISK_MS` | optional    | High-risk IPbot result TTL (default 1 hour).                                                                  |
+| `IPINFO_TOKEN`                 | conditional | Optional fallback source. Required only when IPbot is not configured and the Cloudflare Radar pair is absent. |
+| `CLOUDFLARE_ACCOUNT_ID`        | conditional | Required together with `CLOUDFLARE_RADAR_TOKEN` to enable Radar lookup/fallback + health verification.        |
+| `CLOUDFLARE_RADAR_TOKEN`       | conditional | Bearer token used for Radar `/intelligence/ip` + `/tokens/verify` endpoints.                                  |
+| `ABUSEIPDB_API_KEY`            | optional    | Optional reputation enrichment for non-Worker helper services/tests.                                          |
+| `LOG_LEVEL`                    | optional    | Pino log level (`info` default).                                                                              |
+| `CACHE_BACKEND`                | optional    | `kv` in Worker production, `memory` for local tests/tooling.                                                  |
+| `CACHE_TTL_MS`                 | optional    | Default normalized IP insight TTL (default 300000 ms).                                                        |
+| `CACHE_STALE_TTL_MS`           | optional    | Duration stale non-IPbot entries remain readable while revalidation runs (default 30 minutes).                |
+| `CACHE_MAX_ITEMS`              | optional    | Max entries stored in memory cache (default 500).                                                             |
+| `CLIENT_TIMEOUT_MS`            | optional    | Fallback provider HTTP timeout (default 2500 ms).                                                             |
+| `SIGNING_SECRET`               | optional    | Reserved for private integrations that HMAC-sign `/api/v1/report` requests.                                   |
+| `CREEPJS_ASSETS_PATH`          | optional    | Path to fingerprint helper assets; defaults to `../creepjs/dist` for compatibility with the local dataset.    |
 
-### Secrets handling
+## Secrets Handling
 
 - Never commit `.env` or any real tokens. `.env.example` exists for structure only.
-- Production deployments should pull secrets from your orchestrator (1Password Secrets Automation, Doppler, AWS Secrets Manager, etc.).
-- If you rotate ipinfo or Radar credentials, restart the service so `src/config.ts` revalidates them.
+- Production deployments should pull secrets from Cloudflare Workers secrets and GitHub Actions secrets.
+- Set the primary provider with `wrangler secret put IPBOT_API_KEY` or the `IPBOT_API_KEY` GitHub secret.
+- If you rotate IPbot, ipinfo, or Radar credentials, update the corresponding Worker/GitHub secret and redeploy.
 
-### Operational Checklist
+## Operational Checklist
 
-1. Copy `.env.example` to `.env` (local) or configure environment variables in your platform.
-2. Run `npm run dev` to ensure `/api/health` reports `ipinfoConfigured: true` or `radarHealthy: true`.
-3. For CI, export a dummy `IPINFO_TOKEN=test-token` before running `npm run lint` / `npm run test` so config parsing passes without hitting real networks.
-4. Set `CORS_ALLOWED_ORIGINS` to your Pages domain and any admin domains; never leave `*` in production.
-5. Keep rate limits tuned for your traffic; defaults are conservative (60 req/min) and can be raised with caution.
-6. If `SIGNING_SECRET` is configured, clients must send `X-IPHEY-SIGNATURE` header (`hex(HMAC_SHA256(body, secret))`).
+1. Copy `.env.example` to `.env` for local tooling or configure Worker vars/secrets in Cloudflare.
+2. Set `IPBOT_API_KEY` for production.
+3. Run `npm run dev` to start Wrangler and check `/api/v1/services/status` reports `ipbot: true`.
+4. CI uses dummy provider env from `vitest.config.ts` for tests and never hits real upstreams.
+5. Keep IPbot TTLs aligned with quota: clean results default to 24h, high-risk results default to 1h.

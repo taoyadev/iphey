@@ -1,1 +1,5 @@
+# Legacy .eslintrc.json is used; opt out of ESLint 9 flat-config default.
+# Exported here (not inline in lint-staged) because lint-staged spawns commands
+# without a shell, so an inline VAR=val prefix would be treated as the binary name.
+export ESLINT_USE_FLAT_CONFIG=false
 npx lint-staged

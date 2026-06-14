@@ -39,11 +39,8 @@
     "node": ">=18.18.0"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
     "hono": "4.10.6",
     "lru-cache": "^11.2.2",
-    "pino": "^10.1.0",
-    "undici": "^7.16.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
@@ -57,14 +54,13 @@
     "eslint-plugin-prettier": "^5.5.4",
     "husky": "9.1.7",
     "lint-staged": "16.2.6",
-    "pino-pretty": "^13.1.2",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vitest": "^4.0.8"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "ESLINT_USE_FLAT_CONFIG=false eslint -c .eslintrc.json --fix",
+      "eslint -c .eslintrc.json --fix",
       "prettier --write"
     ],
     "*.{json,md}": [

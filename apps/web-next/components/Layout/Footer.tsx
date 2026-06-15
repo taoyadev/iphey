@@ -13,7 +13,7 @@ export const Footer = () => {
     ],
     creditTo: [
       { label: 'CreepJS Checker', href: 'https://creepjs.org/checker', external: true },
-      { label: 'IPBot', href: 'https://www.ipbot.com', external: true },
+      { label: 'IPBot', href: 'https://ipbot.com', external: true },
       { label: 'BrowserLeaks', href: 'https://browserleaks.io', external: true },
     ],
   };

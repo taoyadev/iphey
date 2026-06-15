@@ -900,7 +900,7 @@ const ReportExperience = () => {
                       {enhancedIPData.sources_used.map((source, index) => {
                         const href = (
                           {
-                            ipbot: 'https://www.ipbot.com/',
+                            ipbot: 'https://ipbot.com/',
                             ipinfo: 'https://ipinfo.io',
                             radar: 'https://radar.cloudflare.com/',
                           } as Record<string, string>

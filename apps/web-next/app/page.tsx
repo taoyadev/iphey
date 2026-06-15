@@ -897,17 +897,38 @@ const ReportExperience = () => {
                   <div className="rounded-3xl border border-white/5 bg-surface/60 p-6">
                     <h3 className="text-lg font-semibold text-white mb-4">{'Data Sources'}</h3>
                     <div className="flex flex-wrap gap-2">
-                      {enhancedIPData.sources_used.map((source, index) => (
-                        <motion.span
-                          key={source}
-                          className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-200 text-xs font-medium"
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.05 }}
-                        >
-                          {source}
-                        </motion.span>
-                      ))}
+                      {enhancedIPData.sources_used.map((source, index) => {
+                        const href = (
+                          {
+                            ipbot: 'https://www.ipbot.com/',
+                            ipinfo: 'https://ipinfo.io',
+                            radar: 'https://radar.cloudflare.com/',
+                          } as Record<string, string>
+                        )[source.toLowerCase()];
+                        const className =
+                          'px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-200 text-xs font-medium';
+                        const anim = {
+                          initial: { opacity: 0, scale: 0.8 },
+                          animate: { opacity: 1, scale: 1 },
+                          transition: { delay: index * 0.05 },
+                        };
+                        return href ? (
+                          <motion.a
+                            key={source}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`${className} hover:bg-blue-500/20 transition-colors`}
+                            {...anim}
+                          >
+                            {source}
+                          </motion.a>
+                        ) : (
+                          <motion.span key={source} className={className} {...anim}>
+                            {source}
+                          </motion.span>
+                        );
+                      })}
                     </div>
                     <p className="text-xs text-slate-500 mt-4">
                       {'Last Updated'}:{' '}

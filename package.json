@@ -59,7 +59,7 @@
     "vitest": "^4.0.8"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "src/**/*.{ts,tsx}": [
       "eslint -c .eslintrc.json --fix",
       "prettier --write"
     ],

@@ -161,13 +161,13 @@ export interface CombinedThreat {
   confidence: number;
 }
 
+// Flat threat shape returned by the Worker's /api/v1/ip/enhanced endpoint
+// (derived from the IPbot risk signals; no per-provider breakdown).
 export interface ThreatIntelligence {
-  providers: {
-    abuseipdb?: ThreatProvider;
-    spamhaus?: ThreatProvider;
-  };
-  combined: CombinedThreat;
-  timestamp: string;
+  threat_score: number;
+  threat_level: ThreatLevel;
+  is_malicious: boolean;
+  factors: string[];
 }
 
 export interface ASNInfo {

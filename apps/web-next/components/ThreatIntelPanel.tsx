@@ -80,8 +80,9 @@ const ThreatIntelPanelComponent = ({ data, isLoading }: ThreatIntelPanelProps) =
     );
   }
 
-  const { combined, providers } = data;
-  const { Icon, label, color, bgColor, barColor } = THREAT_LEVEL_CONFIG[combined.threat_level];
+  const { Icon, label, color, bgColor, barColor } = THREAT_LEVEL_CONFIG[data.threat_level] ?? THREAT_LEVEL_CONFIG.low;
+  const threatScore = data.threat_score ?? 0;
+  const factors = data.factors ?? [];
 
   return (
     <motion.div
@@ -105,142 +106,42 @@ const ThreatIntelPanelComponent = ({ data, isLoading }: ThreatIntelPanelProps) =
             <div>
               <p className={`text-2xl font-bold ${color}`}>{label}</p>
               <p className="text-sm text-slate-400">
-                {combined.is_malicious ? tThreats('maliciousDetected') : tThreats('noThreatsDetected')}
+                {data.is_malicious ? tThreats('maliciousDetected') : tThreats('noThreatsDetected')}
               </p>
             </div>
           </div>
         </div>
-        <div className={`px-4 py-2 rounded-full border ${bgColor} ${color} font-semibold text-lg`}>
-          {combined.threat_score}/100
-        </div>
+        <div className={`px-4 py-2 rounded-full border ${bgColor} ${color} font-semibold text-lg`}>{threatScore}/100</div>
       </div>
 
       {/* Threat Score Progress */}
       <div className="mb-6">
         <div className="flex justify-between text-sm mb-2">
           <span className="text-slate-400">Threat Score</span>
-          <span className={color}>{combined.threat_score}%</span>
+          <span className={color}>{threatScore}%</span>
         </div>
-        <ProgressBar value={combined.threat_score} color={barColor} className="h-3" />
+        <ProgressBar value={threatScore} color={barColor} className="h-3" />
       </div>
 
-      {/* Confidence Level */}
-      <div className="mb-6">
-        <div className="flex justify-between text-sm mb-2">
-          <span className="text-slate-400">Analysis Confidence</span>
-          <span className="text-white">{Math.round(combined.confidence * 100)}%</span>
-        </div>
-        <ProgressBar value={combined.confidence * 100} color="blue" className="h-2" />
-      </div>
-
-      {/* Threat Types */}
-      {combined.threat_types.length > 0 && (
-        <div className="mb-6">
-          <p className="text-xs uppercase tracking-wider text-slate-400 mb-3">Detected Threats</p>
+      {/* Risk Factors */}
+      {factors.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs uppercase tracking-wider text-slate-400 mb-3">Risk Factors</p>
           <div className="flex flex-wrap gap-2">
-            {combined.threat_types.map((type, index) => (
+            {factors.map((factor, index) => (
               <motion.span
-                key={type}
-                className="px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-400/30 text-rose-200 text-xs font-medium"
+                key={factor}
+                className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-200 text-xs font-medium"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
               >
-                {type}
+                {factor}
               </motion.span>
             ))}
           </div>
         </div>
       )}
-
-      {/* Provider Details */}
-      <div className="space-y-3">
-        <p className="text-xs uppercase tracking-wider text-slate-400 mb-3">Data Sources</p>
-
-        {/* AbuseIPDB */}
-        {providers.abuseipdb && (
-          <motion.div
-            className="rounded-xl border border-white/5 bg-black/20 p-4"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-white">AbuseIPDB</span>
-                {providers.abuseipdb.is_listed && (
-                  <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-200 text-xs">Listed</span>
-                )}
-              </div>
-              {providers.abuseipdb.reports !== undefined && (
-                <span className="text-xs text-slate-400">{providers.abuseipdb.reports} reports</span>
-              )}
-            </div>
-            {providers.abuseipdb.threat_types.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {providers.abuseipdb.threat_types.map(type => (
-                  <span key={type} className="px-2 py-0.5 rounded bg-slate-700/50 text-slate-300 text-xs">
-                    {type}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs text-slate-400">
-                Confidence: {Math.round(providers.abuseipdb.confidence * 100)}%
-              </span>
-              {providers.abuseipdb.last_checked && (
-                <span className="text-xs text-slate-500">
-                  {new Date(providers.abuseipdb.last_checked).toLocaleDateString()}
-                </span>
-              )}
-            </div>
-            {providers.abuseipdb.error && <p className="text-xs text-amber-300 mt-2">⚠ {providers.abuseipdb.error}</p>}
-          </motion.div>
-        )}
-
-        {/* Spamhaus */}
-        {providers.spamhaus && (
-          <motion.div
-            className="rounded-xl border border-white/5 bg-black/20 p-4"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-white">Spamhaus</span>
-                {providers.spamhaus.is_listed && (
-                  <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-200 text-xs">Listed</span>
-                )}
-              </div>
-              {providers.spamhaus.list_type && (
-                <span className="text-xs text-slate-400">{providers.spamhaus.list_type}</span>
-              )}
-            </div>
-            {providers.spamhaus.threat_types.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {providers.spamhaus.threat_types.map(type => (
-                  <span key={type} className="px-2 py-0.5 rounded bg-slate-700/50 text-slate-300 text-xs">
-                    {type}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="mt-2">
-              <span className="text-xs text-slate-400">
-                Confidence: {Math.round(providers.spamhaus.confidence * 100)}%
-              </span>
-            </div>
-            {providers.spamhaus.error && <p className="text-xs text-amber-300 mt-2">⚠ {providers.spamhaus.error}</p>}
-          </motion.div>
-        )}
-      </div>
-
-      {/* Timestamp */}
-      <div className="mt-4 pt-4 border-t border-white/5">
-        <p className="text-xs text-slate-500 text-center">Last updated: {new Date(data.timestamp).toLocaleString()}</p>
-      </div>
     </motion.div>
   );
 };

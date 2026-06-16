@@ -17,7 +17,8 @@
   "deploy": {
     "preferredChannel": "github_actions_push_main",
     "localWranglerAuth": "invalid_access_token_9109",
-    "recentGithubRuns": "healthy"
+    "recentGithubRuns": "healthy",
+    "gitPushAuth": "denied_403_newbie-learn-coding"
   },
   "validation": {
     "typecheck": "pass",
@@ -30,6 +31,7 @@
   },
   "blockers": [
     "Cloudflare local deploy token is invalid",
+    "Current GitHub identity cannot push to origin/main",
     "api.iphey.org is not healthy from the control-plane environment",
     "Latest route metadata changes are not deployed yet"
   ]

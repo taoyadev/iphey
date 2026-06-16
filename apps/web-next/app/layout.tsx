@@ -129,7 +129,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         name: SITE_NAME,
         url: SITE_URL,
         logo: ORG_LOGO_URL,
-        sameAs: ['https://github.com/7and1/iphey'],
+        sameAs: ['https://github.com/taoyadev/iphey'],
       },
       {
         '@type': 'WebSite',

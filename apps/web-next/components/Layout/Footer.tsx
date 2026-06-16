@@ -15,6 +15,8 @@ export const Footer = () => {
       { label: 'CreepJS Checker', href: 'https://creepjs.org/checker', external: true },
       { label: 'IPBot', href: 'https://ipbot.com', external: true },
       { label: 'BrowserLeaks', href: 'https://browserleaks.io', external: true },
+      { label: 'Is It Down Or Just Me', href: 'https://isitdownorjustme.net/', external: true },
+      { label: 'Volatile', href: 'https://volatile.sh/', external: true },
     ],
   };
 
@@ -64,7 +66,7 @@ export const Footer = () => {
             >
               <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-2">Project</h3>
               <a
-                href="https://github.com/7and1/iphey"
+                href="https://github.com/taoyadev/iphey"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-slate-400 hover:text-accent transition-colors inline-flex items-center gap-2"

@@ -2,6 +2,9 @@ name = "iphey-api"
 main = "src/worker.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
+routes = [
+  { pattern = "api.iphey.org/*", zone_name = "iphey.org" }
+]
 
 # KV namespace for caching
 [[kv_namespaces]]

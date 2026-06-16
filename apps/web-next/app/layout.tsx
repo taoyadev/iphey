@@ -3,14 +3,15 @@ import './globals.css';
 import { ThemeProvider } from '../components/ThemeProvider';
 import { AIChat } from '../components/ai';
 import { Inter } from 'next/font/google';
+import { ORG_LOGO_URL, SITE_NAME, SITE_URL } from '@/lib/site';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://iphey.org'),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'IPhey - Browser Fingerprint & Digital Identity Inspector',
-    template: '%s | IPhey',
+    default: `${SITE_NAME} - Browser Fingerprint & Digital Identity Inspector`,
+    template: `%s | ${SITE_NAME}`,
   },
   description:
     'Free browser fingerprinting tool and digital identity inspector. Test your online privacy, analyze IP reputation, detect tracking, and understand what websites see about you. Used by security professionals, privacy enthusiasts, and developers.',
@@ -30,9 +31,9 @@ export const metadata: Metadata = {
     'canvas fingerprinting',
     'WebGL fingerprinting',
   ],
-  authors: [{ name: 'IPhey Team', url: 'https://iphey.org' }],
-  creator: 'IPhey',
-  publisher: 'IPhey',
+  authors: [{ name: `${SITE_NAME} Team`, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
   manifest: '/site.webmanifest',
   icons: {
     icon: [
@@ -44,23 +45,23 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://iphey.org',
-    title: 'IPhey - Browser Fingerprint & Digital Identity Inspector',
+    url: SITE_URL,
+    title: `${SITE_NAME} - Browser Fingerprint & Digital Identity Inspector`,
     description:
       'Free browser fingerprinting tool and digital identity inspector. Test your online privacy, analyze IP reputation, and understand what websites see about you.',
-    siteName: 'IPhey',
+    siteName: SITE_NAME,
     images: [
       {
         url: '/og-image.svg',
         width: 1200,
         height: 630,
-        alt: 'IPhey — Browser Fingerprint & Digital Identity Inspector',
+        alt: `${SITE_NAME} — Browser Fingerprint & Digital Identity Inspector`,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'IPhey - Browser Fingerprint & Digital Identity Inspector',
+    title: `${SITE_NAME} - Browser Fingerprint & Digital Identity Inspector`,
     description:
       'Free browser fingerprinting tool and digital identity inspector. Test your online privacy, analyze IP reputation, and understand what websites see about you.',
     images: ['/og-image.svg'],
@@ -77,7 +78,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: 'https://iphey.org',
+    canonical: SITE_URL,
   },
 };
 
@@ -95,8 +96,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     '@graph': [
       {
         '@type': 'SoftwareApplication',
-        '@id': 'https://iphey.org/#software',
-        name: 'IPhey',
+        '@id': `${SITE_URL}/#software`,
+        name: SITE_NAME,
         applicationCategory: 'SecurityApplication',
         offers: {
           '@type': 'Offer',
@@ -106,21 +107,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         description:
           'Free browser fingerprinting tool and digital identity inspector. Test your online privacy, analyze IP reputation, detect tracking, and understand what websites see about you.',
         operatingSystem: 'Web Browser',
-        url: 'https://iphey.org',
+        url: SITE_URL,
         author: {
           '@type': 'Organization',
-          name: 'IPhey',
-          url: 'https://iphey.org',
-          contactPoint: {
-            '@type': 'ContactPoint',
-            email: 'hello@iphey.com',
-            contactType: 'Customer Support',
-          },
-        },
-        aggregateRating: {
-          '@type': 'AggregateRating',
-          ratingValue: '4.8',
-          ratingCount: '1250',
+          name: SITE_NAME,
+          url: SITE_URL,
         },
         featureList: [
           'Browser fingerprinting detection',
@@ -134,37 +125,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       },
       {
         '@type': 'Organization',
-        '@id': 'https://iphey.org/#organization',
-        name: 'IPhey',
-        url: 'https://iphey.org',
-        logo: 'https://iphey.org/iphey.svg',
+        '@id': `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        logo: ORG_LOGO_URL,
         sameAs: ['https://github.com/7and1/iphey'],
-        contactPoint: {
-          '@type': 'ContactPoint',
-          email: 'hello@iphey.com',
-          contactType: 'Customer Support',
-          availableLanguage: 'English',
-        },
       },
       {
         '@type': 'WebSite',
-        '@id': 'https://iphey.org/#website',
-        url: 'https://iphey.org',
-        name: 'IPhey - Browser Fingerprint & Digital Identity Inspector',
+        '@id': `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: `${SITE_NAME} - Browser Fingerprint & Digital Identity Inspector`,
         description:
           'Free browser fingerprinting tool and digital identity inspector. Test your online privacy, analyze IP reputation, and understand what websites see about you.',
         publisher: {
-          '@id': 'https://iphey.org/#organization',
+          '@id': `${SITE_URL}/#organization`,
         },
         potentialAction: {
           '@type': 'SearchAction',
-          target: 'https://iphey.org/?q={search_term_string}',
+          target: `${SITE_URL}/?q={search_term_string}`,
           'query-input': 'required name=search_term_string',
         },
       },
       {
         '@type': 'FAQPage',
-        '@id': 'https://iphey.org/#faq',
+        '@id': `${SITE_URL}/#faq`,
         mainEntity: [
           {
             '@type': 'Question',

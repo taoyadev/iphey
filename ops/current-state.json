@@ -1,0 +1,36 @@
+{
+  "auditedAt": "2026-06-16",
+  "frontend": {
+    "project": "iphey",
+    "customDomain": "https://iphey.org",
+    "fallbackDomain": "https://42356dc5.iphey-657.pages.dev",
+    "status": "reachable"
+  },
+  "api": {
+    "worker": "iphey-api",
+    "customDomain": "https://api.iphey.org",
+    "fallbackDomain": "https://iphey-api.difft.workers.dev",
+    "customDomainStatus": "tls_handshake_failed",
+    "fallbackStatus": "healthy",
+    "frontendRuntimeFallback": "enabled"
+  },
+  "deploy": {
+    "preferredChannel": "github_actions_push_main",
+    "localWranglerAuth": "invalid_access_token_9109",
+    "recentGithubRuns": "healthy"
+  },
+  "validation": {
+    "typecheck": "pass",
+    "lint": "pass",
+    "test": "pass",
+    "webLint": "pass",
+    "webBuild": "pass",
+    "routeMetadataInStaticOutput": "pass",
+    "liveRouteMetadataUpdated": "no"
+  },
+  "blockers": [
+    "Cloudflare local deploy token is invalid",
+    "api.iphey.org is not healthy from the control-plane environment",
+    "Latest route metadata changes are not deployed yet"
+  ]
+}

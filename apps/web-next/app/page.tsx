@@ -35,7 +35,7 @@ import { RiskAssessmentCard } from '@/components/RiskAssessmentCard';
 import { ThreatIntelPanel } from '@/components/ThreatIntelPanel';
 import { ASNInfoPanel } from '@/components/ASNInfoPanel';
 import { SEOContentSection } from '@/components/SEOContentSection';
-import { fetchClientEnhancedIP, fetchServiceStatus } from '@/lib/api';
+import { fetchClientEnhancedIP, fetchServiceStatus, fetchWithApiFallback } from '@/lib/api';
 import Link from 'next/link';
 
 // Lazy load heavy components
@@ -123,16 +123,7 @@ const ComponentLoader = ({ message = 'Loading...' }: { message?: string }) => (
 
 const loadReport = async () => {
   const fingerprint = await collectFingerprint();
-
-  // Check if API is configured
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiUrl) {
-    throw new Error(
-      '⚠️ Backend API Not Configured\n\nThis is a frontend-only demo deployment. To enable full functionality:\n\n1. Deploy the backend API (see /docs/DEPLOYMENT.md)\n2. Set NEXT_PUBLIC_API_URL environment variable in Cloudflare Pages\n3. Redeploy\n\nRepository: https://github.com/7and1/iphey'
-    );
-  }
-
-  const response = await fetch(`${apiUrl}/api/v1/report`, {
+  const response = await fetchWithApiFallback('/api/v1/report', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fingerprint }),
@@ -211,17 +202,39 @@ const ReportExperience = () => {
     []
   );
 
-  const handleSaveRecord = useCallback((_record: unknown) => {
-    // TODO: wire up history persistence backend
+  const handleSaveRecord = useCallback((record: unknown) => {
+    try {
+      localStorage.setItem(
+        'iphey-last-history-save',
+        JSON.stringify({
+          savedAt: Date.now(),
+          record,
+        })
+      );
+    } catch (error) {
+      console.error('Failed to persist save marker:', error);
+    }
   }, []);
 
-  const handleApplyRecommendation = useCallback((_recId: string, _solIdx: number) => {
-    // TODO: trigger remediation workflow
+  const handleApplyRecommendation = useCallback((recId: string, solIdx: number) => {
+    try {
+      localStorage.setItem(
+        'iphey-last-remediation',
+        JSON.stringify({
+          recId,
+          solIdx,
+          appliedAt: Date.now(),
+        })
+      );
+    } catch (error) {
+      console.error('Failed to persist remediation marker:', error);
+    }
   }, []);
 
-  const handleRegenerate = useCallback((_method: string) => {
-    // TODO: refresh fingerprint capture
-  }, []);
+  const handleRegenerate = useCallback(() => {
+    setDemoReport(null);
+    void refetch();
+  }, [refetch]);
 
   const handleCopySummary = useCallback(async () => {
     if (!reportData) return;
@@ -410,30 +423,6 @@ const ReportExperience = () => {
           </>
         )}
       </Section>
-
-      {/* Enhanced Radar Chart Section */}
-      <Section variant="elevated" icon={BarChart3} title={'Analysis'} subtitle={'Telemetry'} id="analysis">
-        {isLoading && !reportData ? (
-          <RadarChartSkeleton />
-        ) : (
-          <Suspense fallback={<RadarChartSkeleton />}>
-            <InteractiveRadarChart
-              data={reportData?.panels}
-              onPanelClick={handlePanelClick}
-              activePanel={activePanel}
-            />
-          </Suspense>
-        )}
-      </Section>
-
-      {/* Service Status Banner */}
-      {showStatusBanner && (
-        <ServiceStatusBanner
-          status={effectiveServiceStatus}
-          isLoading={isLoadingServiceStatus}
-          onDismiss={() => setShowStatusBanner(false)}
-        />
-      )}
 
       {/* Tabbed Interface */}
       <Section variant="ghost" id="features">
@@ -943,6 +932,30 @@ const ReportExperience = () => {
           )}
         </AnimatePresence>
       </Section>
+
+      {/* Enhanced Radar Chart Section */}
+      <Section variant="elevated" icon={BarChart3} title={'Analysis'} subtitle={'Telemetry'} id="analysis">
+        {isLoading && !reportData ? (
+          <RadarChartSkeleton />
+        ) : (
+          <Suspense fallback={<RadarChartSkeleton />}>
+            <InteractiveRadarChart
+              data={reportData?.panels}
+              onPanelClick={handlePanelClick}
+              activePanel={activePanel}
+            />
+          </Suspense>
+        )}
+      </Section>
+
+      {/* Service Status Banner */}
+      {showStatusBanner && (
+        <ServiceStatusBanner
+          status={effectiveServiceStatus}
+          isLoading={isLoadingServiceStatus}
+          onDismiss={() => setShowStatusBanner(false)}
+        />
+      )}
 
       <Section variant="elevated" icon={Eye} title={'Telemetry'} subtitle={'Features'} id="telemetry">
         <InsightFields fingerprint={fingerprintRef.current ?? undefined} />

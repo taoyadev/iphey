@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SITE_URL, SITE_NAME } from '@/lib/site';
 
 export const runtime = 'edge';
 
@@ -37,7 +38,7 @@ type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
 // System prompt
 function buildSystemPrompt(context?: ChatRequest['context']): string {
-  let systemPrompt = `You are IPH, an AI assistant for IPhey - a browser fingerprint analysis tool.
+  let systemPrompt = `You are IPH, an AI assistant for ${SITE_NAME} - a browser fingerprint analysis tool.
 
 Your role:
 - Explain browser fingerprinting concepts clearly
@@ -160,7 +161,7 @@ export async function POST(request: Request) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://iphey.org',
+        'HTTP-Referer': SITE_URL,
         'X-Title': 'IPhey AI Assistant',
       },
       body: JSON.stringify({
@@ -179,7 +180,7 @@ export async function POST(request: Request) {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://iphey.org',
+          'HTTP-Referer': SITE_URL,
           'X-Title': 'IPhey AI Assistant',
         },
         body: JSON.stringify({

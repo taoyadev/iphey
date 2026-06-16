@@ -15,6 +15,7 @@ import type { ExecutionContext, ScheduledEvent } from '@cloudflare/workers-types
 import type { ReportRequestBody } from './types/report';
 import type { Env } from './worker/types';
 import { createWorkerIpService } from './services/ipService.worker';
+import { SITE_URL } from './utils/site';
 
 type WorkerGlobal = typeof globalThis & {
   ipCacheInitialized?: boolean;
@@ -507,7 +508,7 @@ function createWorkerApp() {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${apiKey}`,
-              'HTTP-Referer': 'https://iphey.org',
+              'HTTP-Referer': SITE_URL,
               'X-Title': 'IPhey AI Assistant',
             },
             body: JSON.stringify({

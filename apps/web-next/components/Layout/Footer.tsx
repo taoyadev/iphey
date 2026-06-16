@@ -62,12 +62,15 @@ export const Footer = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.15 }}
             >
-              <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-2">Contact</h3>
+              <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-2">Project</h3>
               <a
-                href="mailto:hello@iphey.com"
+                href="https://github.com/7and1/iphey"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-sm text-slate-400 hover:text-accent transition-colors inline-flex items-center gap-2"
               >
-                hello@iphey.com
+                GitHub repository
+                <ExternalLink className="h-3 w-3 opacity-50" />
               </a>
             </motion.div>
           </div>

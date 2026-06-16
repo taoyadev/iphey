@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IPHLogo } from './IPHLogo';
+import { fetchWithApiFallback } from '@/lib/api';
 import { useTranslations } from '@/lib/translations';
 
 // Types
@@ -172,9 +173,7 @@ export const AIChat: React.FC<AIChatProps> = ({ context }) => {
     }]);
 
     try {
-      // Use backend API (Worker) for AI chat
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${apiUrl}/api/ai/chat`, {
+      const response = await fetchWithApiFallback('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

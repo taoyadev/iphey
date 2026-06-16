@@ -1,19 +1,53 @@
-'use client';
+import type { Metadata } from 'next';
+import LeaksClient from './LeaksClient';
+import { SITE_NAME, SITE_URL } from '@/lib/site';
 
-import dynamic from 'next/dynamic';
+const title = 'Leaks';
+const description =
+  'Analyze browser and IP leak signals, compare leak surfaces, and verify that privacy protections are actually working.';
+const canonical = `${SITE_URL}/leaks`;
 
-const LeakAnalyzerPage = dynamic(() => import('@/components/leaks/LeakAnalyzerPage'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center space-y-4">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent"></div>
-        <p className="text-sm text-slate-400">Preparing leak analysis…</p>
-      </div>
-    </div>
-  ),
-});
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: SITE_NAME,
+      item: SITE_URL,
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: title,
+      item: canonical,
+    },
+  ],
+};
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: {
+    canonical,
+  },
+  openGraph: {
+    title: `${title} | ${SITE_NAME}`,
+    description,
+    url: canonical,
+  },
+  twitter: {
+    title: `${title} | ${SITE_NAME}`,
+    description,
+  },
+};
 
 export default function LeaksPage() {
-  return <LeakAnalyzerPage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <LeaksClient />
+    </>
+  );
 }

@@ -31,10 +31,42 @@ try {
   await first.goto(base, { waitUntil: 'domcontentloaded' });
   verify(
     'first render contains task and truthful idle state',
-    (await first.locator('body').innerText()).includes('Ready. No check has run yet.')
+    (await first.locator('body').innerText()).includes('No check has run yet.')
   );
   await first.screenshot({ path: `${out}/mobile-first-render.png`, fullPage: false });
+  verify(
+    'initial action stays disabled until client controls are bound',
+    await first.getByRole('button', { name: 'Run check', exact: true }).isDisabled()
+  );
   await nojs.close();
+  const bootstrap = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let releaseScripts;
+  const scriptGate = new Promise(resolve => {
+    releaseScripts = resolve;
+  });
+  let earlyApiRequests = 0;
+  await bootstrap.route('**/_next/static/**/*.js', async route => {
+    await scriptGate;
+    await route.continue();
+  });
+  await bootstrap.route('**/api/**', async route => {
+    earlyApiRequests++;
+    await route.abort();
+  });
+  try {
+    const bootPage = await bootstrap.newPage();
+    await bootPage.goto(base, { waitUntil: 'commit' });
+    const action = bootPage.getByRole('button', { name: 'Run check', exact: true });
+    await action.waitFor();
+    verify('slow JavaScript cannot expose an unbound active action', await action.isDisabled());
+    releaseScripts();
+    await bootPage.waitForFunction(() => !document.querySelector('#interactive-analysis button')?.disabled);
+    verify('action becomes usable after client initialization', await action.isEnabled());
+    verify('bootstrap itself does not start measurement requests', earlyApiRequests === 0);
+  } finally {
+    releaseScripts();
+    await bootstrap.close();
+  }
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   activePage = page;

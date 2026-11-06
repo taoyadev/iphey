@@ -4,11 +4,23 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 const require = createRequire(import.meta.url);
 const { chromium } = require('/Users/openclaw/node_modules/playwright');
-const expected = execFileSync(
-  'git',
-  ['-c', 'credential.helper=', 'ls-remote', 'https://github.com/taoyadev/iphey.git', 'refs/heads/main'],
-  { encoding: 'utf8', timeout: 20000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }
-).split(/\s/)[0];
+const expected =
+  process.argv[2] ||
+  process.env.IPHEY_RELEASE_SHA ||
+  JSON.parse(
+    execFileSync(
+      'curl',
+      [
+        '--fail',
+        '--silent',
+        '--show-error',
+        '--max-time',
+        '15',
+        'https://api.github.com/repos/taoyadev/iphey/git/ref/heads/main',
+      ],
+      { encoding: 'utf8', timeout: 20000 }
+    )
+  ).object.sha;
 assert.match(expected, /^[a-f0-9]{40}$/);
 const target = 'https://iphey.org',
   api = 'https://api.iphey.org';
@@ -34,6 +46,8 @@ const browser = await chromium.launch({
   executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 });
 const checks = [];
+let activePage;
+const networkFailures = [];
 try {
   for (const [viewport, javaScriptEnabled, label] of [
     [{ width: 390, height: 844 }, false, 'first-render'],
@@ -42,13 +56,17 @@ try {
   ]) {
     const context = await browser.newContext({ viewport, javaScriptEnabled, reducedMotion: 'reduce' });
     const page = await context.newPage();
+    activePage = page;
+    page.on('requestfailed', request =>
+      networkFailures.push({ url: request.url(), error: request.failure()?.errorText })
+    );
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const response = await page.goto(target, { waitUntil: 'domcontentloaded' });
     assert.equal(response.status(), 200);
     assert.equal(await page.locator('meta[name="iphey-release"]').getAttribute('content'), expected);
     await page.getByRole('button', { name: 'Run check', exact: true }).waitFor();
-    assert.ok((await page.locator('body').innerText()).includes('Ready. No check has run yet.'));
+    assert.ok((await page.locator('body').innerText()).includes('No check has run yet.'));
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.screenshot({ path: `${out}/${label}.png`, fullPage: false });
     checks.push(label + ' canonical release and idle state');
@@ -105,6 +123,12 @@ try {
     )
   );
   console.log(JSON.stringify({ expected, checks, target, api, artifactDir: out }));
+} catch (error) {
+  if (activePage && !activePage.isClosed()) {
+    await writeFile(`${out}/failure-dom.txt`, await activePage.locator('body').innerText());
+    await writeFile(`${out}/network-failures.json`, JSON.stringify(networkFailures, null, 2));
+  }
+  throw error;
 } finally {
   await browser.close();
 }

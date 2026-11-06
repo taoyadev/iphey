@@ -35,12 +35,16 @@ export default function CheckWorkspace({
   embedded?: boolean;
 }) {
   const Heading = embedded ? 'h2' : 'h1';
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(true);
+  }, []);
   const [preset, setPreset] = useState<ScanPreset>(initialPreset);
   const [activeProbes, setActiveProbes] = useState(false);
   const [record, setRecord] = useState<ScanRecord | null>(null);
   const [previous, setPrevious] = useState<ScanRecord | null>(null);
   const [running, setRunning] = useState(false);
-  const [message, setMessage] = useState('Ready. No check has run yet.');
+  const [message, setMessage] = useState('No check has run yet.');
   const [name, setName] = useState('');
   const [technicalExport, setTechnicalExport] = useState(false);
   const [exportFields, setExportFields] = useState<string[]>([]);
@@ -105,7 +109,7 @@ export default function CheckWorkspace({
               <select
                 className={`${controlClass} block w-full`}
                 value={preset}
-                disabled={running}
+                disabled={!ready || running}
                 onChange={e => {
                   setPreset(e.target.value as ScanPreset);
                   setActiveProbes(false);
@@ -122,7 +126,7 @@ export default function CheckWorkspace({
               <input
                 type="checkbox"
                 checked={activeProbes}
-                disabled={running}
+                disabled={!ready || running}
                 onChange={e => setActiveProbes(e.target.checked)}
               />
               {preset === 'vpn'
@@ -151,7 +155,7 @@ export default function CheckWorkspace({
           <div className="flex flex-wrap gap-3">
             <button
               className={cn(controlClass, 'bg-accent text-slate-950 font-semibold')}
-              disabled={running}
+              disabled={!ready || running}
               onClick={() => void start()}
             >
               {running ? 'Checking…' : record ? 'Run check again' : 'Run check'}
@@ -240,7 +244,7 @@ export default function CheckWorkspace({
                     ['http', 'network', 'canvas', 'webgl', 'audio', 'fonts', 'webrtc'].includes(key) && (
                       <button
                         className={controlClass}
-                        disabled={running}
+                        disabled={!ready || running}
                         onClick={() =>
                           void start(key === 'http' || key === 'network' ? 'environment' : (key as ScanPreset))
                         }

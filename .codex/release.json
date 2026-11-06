@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "prepare": [
+    {
+      "name": "Accepted candidate checks and managed browser acceptance",
+      "argv": ["openclaw-ops", "e2e", "--project", "iphey-optimization", "--cmd", "npm run typecheck && npm run lint && npm run test > \"$OPENCLAW_ARTIFACT_DIR/backend-tests.log\" 2>&1 && npm run test --prefix apps/web-next > \"$OPENCLAW_ARTIFACT_DIR/frontend-tests.log\" 2>&1 && npm run web:lint && npm run web:build && IPHEY_HTTP_INTEGRATION=1 node scripts/browser-qa.mjs"]
+    }
+  ],
+  "deploy": [
+    { "name": "Publish main through the fixed GitHub Actions production route", "argv": ["./scripts/deploy-cloudflare.sh"] }
+  ],
+  "verify": [
+    { "name": "Verify canonical production release and real browser flow", "argv": ["openclaw-ops", "e2e", "--project", "iphey-optimization", "--cmd", "node scripts/production-qa.mjs"], "timeout_seconds": 600 }
+  ]
+}

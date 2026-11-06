@@ -180,3 +180,20 @@ When a deploy or provider token rotates:
 5. Re-run the production smoke checks.
 
 Do not store rotated values in commit messages, docs, screenshots, shell history exports, or tracked config files.
+
+## Verified-candidate release command
+
+After explicit production authorization, run `~/.codex/bin/release run --go` from
+this repository. `.codex/release.json` chains the managed OpenClaw checks, the
+existing `scripts/deploy-cloudflare.sh` Actions publication route, and canonical
+production browser verification without an approval pause between phases.
+
+The publication script uses the existing `taoyadev` GitHub identity through the
+scoped token wrapper, without changing the global active account. The workflow
+checks the production Cloudflare account ID before publishing. The API uses the
+`api.iphey.org` Worker Custom Domain; frontend and API expose the same commit
+marker for release acceptance. Canonical verification makes one bounded live
+connection check and requires actual IP metadata. It does not use request mocks.
+
+Do not use the historical interactive setup script to recreate repositories,
+KV namespaces or credentials for an ordinary release.

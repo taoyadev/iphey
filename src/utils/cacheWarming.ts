@@ -9,7 +9,7 @@ import { logger } from './logger';
  * Common IPs to warm cache with
  * Includes public DNS servers, popular CDN IPs, and common service providers
  */
-const COMMON_IPS = [
+export const COMMON_IPS = [
   // Google Public DNS
   '8.8.8.8',
   '8.8.4.4',
@@ -33,6 +33,23 @@ const COMMON_IPS = [
   // Popular VPN exit nodes (for risk detection testing)
   '185.220.101.1', // Tor exit
 ];
+
+export const HIGH_VALUE_IP_SEEDS = [
+  '8.26.56.26', // Comodo Secure DNS
+  '64.6.64.6', // Verisign
+  '76.76.2.0', // Vercel
+  '151.101.1.69', // Fastly sample edge
+  '34.117.59.81', // Google Cloud sample edge
+  '172.67.74.227', // Cloudflare proxied origin sample
+  '23.235.33.143', // Fastly sample CDN
+  '45.33.32.156', // Linode sample
+  '66.249.66.1', // Googlebot sample range
+  '185.220.101.10', // Tor exit sample
+  '198.51.100.42', // Reserved residential-style sample
+  '203.0.113.10', // Reserved broadband-style sample
+];
+
+export const SEO_IP_SEEDS = Array.from(new Set([...COMMON_IPS, ...HIGH_VALUE_IP_SEEDS]));
 
 export interface CacheWarmingOptions {
   enabled: boolean;

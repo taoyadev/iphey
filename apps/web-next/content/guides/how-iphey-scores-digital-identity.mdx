@@ -1,0 +1,17 @@
+## Current method
+
+The current workspace uses schema version 2, collector 2.0.1 and rules observations-1. It presents observed values and limitations instead of a population uniqueness percentage or a judgment about a person.
+
+## Missing input
+
+Probe states distinguish observed, not run, unsupported, blocked, timeout, no result, unavailable and error. An HTTP 200 can carry partial evidence. A blocked Canvas or failed provider does not become a trustworthy verdict.
+
+## Comparison rules
+
+Compare requires matching schema, collector, rules, subject, per-item scope and source. A missing value is marked missing. Different versions or scopes are incomparable. System time, retrieval time and probe duration are excluded from meaningful value differences.
+
+## Legacy API
+
+The v1 report remains a legacy heuristic evaluation API, separate from the observation workspace. It requires supplied browser data and risk evidence. Its numbers are not population probabilities or calibrated confidence. New integrations should use the observation endpoint and explicit per-item states.
+
+[Open the relevant tool](/) · [Compare saved records](/compare)

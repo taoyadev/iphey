@@ -1,7 +1,14 @@
+import createMDX from '@next/mdx';
+import { fileURLToPath } from 'node:url';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Static export for Cloudflare Pages
   output: 'export',
+  // Include shared contracts under src/ without inferring the runtime user's home.
+  turbopack: { root: fileURLToPath(new URL('../../', import.meta.url)) },
+
+  pageExtensions: ['ts', 'tsx', 'md', 'mdx'],
 
   // Disable image optimization for static export
   images: {
@@ -28,4 +35,10 @@ const nextConfig = {
     : {}),
 };
 
-export default nextConfig;
+const withMDX = createMDX({
+  options: {
+    remarkPlugins: ['remark-gfm'],
+  },
+});
+
+export default withMDX(nextConfig);

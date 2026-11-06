@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 
@@ -52,11 +51,7 @@ export function PremiumButton({
   };
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className={cn('relative inline-block', glow && 'hover-glow')}
-    >
+    <div className={cn('relative inline-block', glow && 'hover-glow')}>
       {glow && (
         <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-lg blur opacity-25 group-hover:opacity-40 transition-opacity" />
       )}
@@ -75,6 +70,6 @@ export function PremiumButton({
           {children}
         </span>
       </Button>
-    </motion.div>
+    </div>
   );
 }

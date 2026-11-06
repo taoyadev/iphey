@@ -1,0 +1,17 @@
+## Save a baseline
+
+Open the leak workspace with the VPN in your initial state. Select active WebRTC only if you agree to contact the disclosed STUN server. Run the check, inspect the observed HTTP exit and candidates, and save a record named VPN off.
+
+## Change and repeat
+
+Switch the VPN, keep the same browser and probe scope, and run again. Save VPN on. Open Compare and select the two records. A changed HTTP exit shows that those two HTTP requests used different addresses.
+
+## Interpret differences
+
+A different public ICE address deserves investigation, but does not by itself identify the original address or prove a VPN leak. Host, server-reflexive, relay and mDNS candidates have different meanings. No candidates can mean browser restriction or network failure.
+
+## Know the coverage
+
+IPhey does not currently provide DNS resolver challenges or independent IPv4 and IPv6 path tests. A successful HTTP query cannot establish that these paths are leak-free. Use a separately verified test for the missing capability.
+
+[Open the relevant tool](/leaks) · [Compare saved records](/compare)

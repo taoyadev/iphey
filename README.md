@@ -1,23 +1,23 @@
 # iphey — Digital Identity & Fingerprint Inspector
 
-iphey is a TypeScript-first Cloudflare Worker API paired with a Next.js 14 client that benchmarks how “real” a browser session looks. It combines IPbot intelligence with local fingerprint telemetry and renders an interactive dashboard inspired by the reference UI you shared.
+iphey is a TypeScript-first Cloudflare Worker API paired with a Next.js client that benchmarks how “real” a browser session looks. It combines IPbot intelligence with local fingerprint telemetry and renders an interactive trust dashboard.
 
 ## Stack
 
-- **API**: Cloudflare Workers, Hono, TypeScript, Zod, Pino, KV-backed cache
+- **API**: Cloudflare Workers, Hono, TypeScript, Zod, KV-backed cache (single Worker — the whole API lives in `src/worker.ts`)
 - **Clients**: IPbot as the primary IP intelligence provider, with ipinfo/Radar retained as optional fallback paths
 - **Scoring**: deterministic heuristics for browser/location/IP/hardware/software panels
-- **Frontend**: Next.js 14 + App Router (see `apps/web-next`), React Query for live scans, deployed to Cloudflare Pages
+- **Frontend**: Next.js 16 (App Router) + React 19 (see `apps/web-next`), React Query for live scans, statically exported to Cloudflare Pages
 - **Tooling**: Wrangler for local Worker dev/deploy, Vitest for unit coverage, npm scripts mirror AGENTS.md guidelines
 
 ## Project Layout
 
 ```
-├─ src/                 # Worker entrypoint, clients, services, schemas, types
-├─ apps/web-next/       # Next.js 14 front-end (production)
+├─ src/                 # Worker entrypoint (worker.ts), clients, services, schemas, types, utils
+├─ apps/web-next/       # Next.js front-end (production; static export)
 ├─ docs/                # Specs & configuration notes
-├─ dist/                # TypeScript build output
-└─ .env.example         # Required environment variables (no secrets committed)
+├─ dist/                # Legacy tsc output (NOT the deploy artifact; Wrangler bundles src/worker.ts)
+└─ .env.example         # Environment variable reference (no secrets committed)
 
 Note: The mixvisit/ directory (if present) is an external Svelte library, NOT part of IPhey.
 It's gitignored and not integrated into the build process.
@@ -28,10 +28,11 @@ It's gitignored and not integrated into the build process.
 1. **Install dependencies**
    ```bash
    npm install
-   bash -lc "cd apps/web-next && npm install"
+   bash -lc "cd apps/web-next && npm install --legacy-peer-deps"
    ```
 2. **Configure environment**
-   - Copy `.env.example` → `.env` for local tooling and fill `IPBOT_API_KEY`.
+   - For local `wrangler dev`, put `IPBOT_API_KEY` in `.dev.vars` (gitignored). Non-secret vars (origin, timeouts, TTLs) come from `wrangler.toml` `[vars]`.
+   - `.env.example` documents every knob; copy it to `.env` only for tooling/scripts that read dotenv.
    - In production, set `IPBOT_API_KEY` with `wrangler secret put IPBOT_API_KEY` or the GitHub Actions secret of the same name.
    - Do **not** commit real tokens. Keep them in 1Password/local vaults per security guidance.
 3. **Run the stack**
@@ -52,8 +53,8 @@ The Next.js client already lives in `apps/web-next`. Production traffic is serve
 | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `npm run dev`                                             | Wrangler dev server for the Worker API                                                    |
 | `npm run web:dev`                                         | Next.js App Router dev server on port 3002                                                |
-| `npm run build` / `npm run build:worker`                  | TypeScript compile for the Worker API                                                     |
-| `npm start`                                               | Alias for Wrangler dev                                                                    |
+| `npm run build` / `npm run build:worker`                  | `tsc` type-check/compile to `dist/` (validation only; Wrangler bundles `src/worker.ts` at deploy) |
+| `npm start`                                               | Alias for `wrangler dev`                                                                  |
 | `npm run typecheck` / `npm run lint` / `npm run web:lint` | Type-check and lint API/frontend                                                          |
 | `npm run test`                                            | Vitest suite with mocked upstream clients                                                 |
 | `npm run coverage`                                        | Vitest with V8 coverage reports                                                           |
@@ -143,7 +144,7 @@ The Next.js SPA uses React Query to run `collectFingerprint()` (WebGL, canvas, a
 ## Troubleshooting
 
 - **IP shows `127.0.0.1` locally**: Local Wrangler does not provide Cloudflare edge headers unless you send `X-Forwarded-For` in debug requests.
-- **`Invalid environment configuration` in tooling/tests**: `.env` requires `IPBOT_API_KEY`, `IPINFO_TOKEN`, or both `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_RADAR_TOKEN` when code imports `src/config.ts`.
+- **No IP data / placeholder results locally**: the Worker needs at least one provider configured — set `IPBOT_API_KEY` in `.dev.vars` (or `IPINFO_TOKEN`, or both `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_RADAR_TOKEN`). With none set, lookups return a structured unavailable error. The v2 connection endpoint preserves an observed HTTP exit separately; it never fabricates location or risk.
 - **`CLOUDFLARE_API_TOKEN required` deployment fails**: Ensure `source .deploy.env` before executing any `wrangler` commands. Token needs Workers KV + Pages permissions (same as creepjs).
 - **`429` from upstream providers**: Disable or extend `CACHE_WARMING_*`. SWR cache will refresh in the background.
 - **Frontend can't reach API**: Confirm Pages environment variable `NEXT_PUBLIC_API_URL` points to the Workers domain.
@@ -156,3 +157,50 @@ The Next.js SPA uses React Query to run `collectFingerprint()` (WebGL, canvas, a
 - IPbot API keys must only be provided through environment/secret stores; never in repo files.
 
 For deeper roadmap items, see `docs/PROJECT_SPEC.md`. Contributions should follow Conventional Commits and request review from the IP platform team.
+
+
+## Observation workspace
+
+The main tasks are My check (`/`), IP lookup (`/ip`), Leak test (`/leaks`) and
+Compare (`/compare`). ASN lookup is `/asn`. Seeded IP/ASN URLs retain the queried
+object; arbitrary addresses use query parameters on the generic tools.
+
+A scan starts after an explicit click. Browser measurements stay in memory until
+the user saves locally or exports; connection metadata uses
+`GET /api/v2/connection`. This version does not report population uniqueness or
+a global safety score. DNS challenges and independent IPv4/IPv6 path probes are
+explicitly not provided. Active WebRTC uses a disclosed STUN server, bounded ICE
+gathering and connection cleanup.
+
+The shared fingerprint type is `src/types/report.ts`; observations and versions
+are in `src/types/scan.ts`, with external response validation in
+`src/schemas/scan.ts`. Legacy report clients must supply complete observed hardware fields (nested or legacy flat) and provider risk evidence; incomplete evidence cannot be scored as
+trustworthy. See `docs/ENDGAME.md` and `/api-reference` for compatibility details.
+
+Checks: `npm run typecheck`, `npm run lint`, `npm run test`,
+`npm run test --prefix apps/web-next`, `npm run web:lint`, and the managed OpenClaw
+`npm run web:build` plus `scripts/browser-qa.mjs`. The browser regression uses
+real browser probes and explicit API fixtures; it is not production-provider
+validation.
+
+
+## Security and record compatibility follow-up (2026-11-06)
+
+The build/test toolchain supports Node 20.19+, 22.12+, or 24+ (CI uses 24).
+The project `.npmrc` retains the legacy peer-resolution policy used by the
+lockfiles; frontend installs keep the existing `--legacy-peer-deps` flag.
+Hono, Zod, Next.js and Vitest were updated to patched versions within their
+current production major versions. The frontend Vitest runner now shares the
+root Vitest 4 series, replacing the affected 2.x runner.
+
+Collector `2.0.1` keeps the basic browser observation separate from later
+high-entropy probes. Earlier collector versions remain stored and are marked
+incomparable. New record writes use shared validation and the same size limit
+as reads. Legacy history can be inspected read-only; damaged legacy JSON does
+not prevent current records from being used.
+
+For repeatable HTTP integration on the registered OpenClaw preview:
+`IPHEY_HTTP_INTEGRATION=1 node scripts/browser-qa.mjs`. This exercises the real
+application Hono API over loopback HTTP, with synthetic provider responses and
+reverse-proxy IP metadata. It does not contact production IP providers or test
+Cloudflare's deployed runtime.

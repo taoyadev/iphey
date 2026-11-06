@@ -25,9 +25,24 @@ export interface IpbotClientOptions {
   timeoutMs?: number;
   maxRetries?: number;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
 }
 
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number, signal?: AbortSignal): Promise<void> => {
+  signal?.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+};
 
 const toNumber = (value: string | null): number | undefined => {
   if (value == null) return undefined;
@@ -76,6 +91,7 @@ export async function fetchIpbotIp(ip: string, options: IpbotClientOptions): Pro
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    options.signal?.throwIfAborted();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -86,9 +102,8 @@ export async function fetchIpbotIp(ip: string, options: IpbotClientOptions): Pro
           'X-API-Key': options.apiKey,
           Accept: 'application/json',
         },
-        signal: controller.signal,
+        signal: options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal,
       });
-      clearTimeout(timeout);
 
       const rateLimit = parseRateLimit(response.headers);
       logger.debug({ ip, status: response.status, ...rateLimit }, 'IPbot rate-limit headers');
@@ -102,7 +117,7 @@ export async function fetchIpbotIp(ip: string, options: IpbotClientOptions): Pro
         logger.warn({ ip, attempt, delayMs: delay, ...rateLimit }, 'IPbot rate limited (429), backing off');
         lastError = new Error('IPbot rate limited: 429');
         if (attempt < maxRetries) {
-          await sleep(delay);
+          await sleep(delay, options.signal);
           continue;
         }
         throw lastError;
@@ -113,7 +128,7 @@ export async function fetchIpbotIp(ip: string, options: IpbotClientOptions): Pro
         const text = await response.text().catch(() => '');
         lastError = new Error(`IPbot upstream error: ${response.status} ${response.statusText} ${text}`.trim());
         if (attempt < maxRetries) {
-          await sleep(backoffDelay(attempt, null));
+          await sleep(backoffDelay(attempt, null), options.signal);
           continue;
         }
         throw lastError;
@@ -125,17 +140,21 @@ export async function fetchIpbotIp(ip: string, options: IpbotClientOptions): Pro
       }
 
       const data = (await response.json()) as IpbotLookupResponse;
+      clearTimeout(timeout);
       return { data, rateLimit, fetchedAt: Date.now() };
     } catch (error) {
       clearTimeout(timeout);
+      options.signal?.throwIfAborted();
       lastError = error instanceof Error ? error : new Error(String(error));
 
       const isRetryable = lastError.name === 'AbortError' || lastError.message.includes('fetch failed');
       if (attempt < maxRetries && isRetryable) {
-        await sleep(backoffDelay(attempt, null));
+        await sleep(backoffDelay(attempt, null), options.signal);
         continue;
       }
       throw lastError;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

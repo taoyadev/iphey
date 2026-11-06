@@ -34,7 +34,7 @@ export const InsightFields = ({ fingerprint }: InsightFieldsProps) => {
       <FieldRow label="Viewport" value={`${fingerprint.screen?.width} x ${fingerprint.screen?.height}`} />
       <FieldRow label={t('webglVendor')} value={fingerprint.webglVendor ?? '—'} />
       <FieldRow label={t('canvasHash')} value={fingerprint.canvasFingerprint?.slice(0, 16)} />
-      <FieldRow label={t('fontsDetected')} value={fingerprint.fontCount ?? fingerprint.legacyFonts?.length ?? 0} />
+      <FieldRow label={t('fontsDetected')} value={fingerprint.fontCount ?? fingerprint.fonts?.length ?? 0} />
       <FieldRow label={t('cookiesEnabled')} value={fingerprint.cookiesEnabled ? 'Yes' : 'No'} />
     </div>
   );

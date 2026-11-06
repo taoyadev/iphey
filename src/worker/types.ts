@@ -13,7 +13,9 @@ export interface Env {
   CLOUDFLARE_RADAR_TOKEN?: string;
   ABUSEIPDB_API_KEY?: string;
   OPENROUTER_API_KEY?: string;
+  OPENROUTER_MODEL?: string;
   NODE_ENV?: string;
+  RELEASE_SHA?: string;
   CACHE_BACKEND?: string;
   CACHE_TTL_MS?: string;
   CACHE_STALE_TTL_MS?: string;

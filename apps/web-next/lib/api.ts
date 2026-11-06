@@ -17,7 +17,7 @@ const getApiCandidateBaseUrls = () => {
   const primary = getApiBaseUrl();
   const fallback = getApiFallbackBaseUrl();
 
-  return [primary, fallback].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
+  return [primary, ...(fallback ? [fallback] : [])].filter((value, index, values) => values.indexOf(value) === index);
 };
 
 export const buildApiUrl = (path: string, baseUrl = getApiBaseUrl()) => `${baseUrl}${path}`;
@@ -27,7 +27,9 @@ export async function fetchWithApiFallback(path: string, init?: RequestInit): Pr
   let lastResponse: Response | undefined;
   let lastError: unknown;
 
+  const signal = init?.signal;
   for (const [index, baseUrl] of candidates.entries()) {
+    signal?.throwIfAborted();
     const isLastCandidate = index === candidates.length - 1;
 
     try {
@@ -38,6 +40,7 @@ export async function fetchWithApiFallback(path: string, init?: RequestInit): Pr
 
       lastResponse = response;
     } catch (error) {
+      signal?.throwIfAborted();
       lastError = error;
       if (isLastCandidate) {
         break;
@@ -148,4 +151,17 @@ export async function fetchClientEnhancedIP(
   }
 
   return response.json();
+}
+
+export async function describeApiFailure(response: Response): Promise<string> {
+  let code = '';
+  let requestId = response.headers.get('X-Request-Id') ?? '';
+  try {
+    const data = await response.json();
+    if (typeof data.error === 'string' && /^[A-Z_]{3,80}$/.test(data.error)) code = data.error;
+    if (typeof data.requestId === 'string' && /^[\w-]{1,80}$/.test(data.requestId)) requestId = data.requestId;
+  } catch {
+    /* An invalid error body must not be shown as provider data. */
+  }
+  return `Request failed (HTTP ${response.status}${code ? `, ${code}` : ''}).${requestId ? ` Request ID: ${requestId}.` : ''}`;
 }

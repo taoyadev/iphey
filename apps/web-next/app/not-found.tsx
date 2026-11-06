@@ -1,20 +1,25 @@
 import Link from 'next/link';
-
+import NotFoundTools from '@/components/check/NotFoundTools';
+import { PageLayout } from '@/components/Layout/PageLayout';
 export default function NotFound() {
   return (
-    <html lang="en">
-      <body className="flex items-center justify-center min-h-screen bg-surface">
-        <div className="text-center space-y-4">
-          <h1 className="text-6xl font-bold text-accent">404</h1>
-          <p className="text-xl text-slate-400">Page not found</p>
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 bg-accent text-slate-900 rounded-full font-semibold hover:bg-accent/90 transition-colors"
-          >
-            Go home
+    <PageLayout>
+      <h1 className="text-4xl font-semibold">404 · Page not found</h1>
+      <p>
+        Arbitrary IP and ASN addresses use the query tools. Your requested address may not have a static detail page.
+      </p>
+      <NotFoundTools />
+      <nav className="flex flex-wrap gap-4">
+        {[
+          ['/ip', 'Look up an IP'],
+          ['/asn', 'Look up an ASN'],
+          ['/', 'Check this environment'],
+        ].map(([href, label]) => (
+          <Link key={href} href={href} className="min-h-11 rounded-xl border border-white/20 px-4 py-3 text-accent">
+            {label}
           </Link>
-        </div>
-      </body>
-    </html>
+        ))}
+      </nav>
+    </PageLayout>
   );
 }

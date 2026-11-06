@@ -73,6 +73,8 @@ export interface RadarIpResponse {
 }
 
 export interface NormalizedIpInsight {
+  cacheStatus?: 'fresh' | 'stale';
+  refreshFailed?: boolean;
   ip: string;
   city?: string;
   region?: string;

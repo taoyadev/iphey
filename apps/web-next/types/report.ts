@@ -43,6 +43,14 @@ export interface ReportResponse {
   ip?: string;
   fetchedAt: number;
   source: 'ipinfo' | 'radar' | 'ipbot' | 'mixed';
+  uniqueness?: {
+    uniquenessScore: number;
+    entropyBand: 'low' | 'moderate' | 'high';
+    entropyAverage: number;
+    estimatedDistinctiveness: string;
+    standoutPanels: string[];
+    whatMakesYouUnique: string[];
+  };
   enhanced?: {
     browser: EnhancedPanelData;
     location: EnhancedPanelData;
@@ -52,84 +60,8 @@ export interface ReportResponse {
   };
 }
 
-export interface FingerprintPayload {
-  userAgent: string;
-  acceptLanguage?: string;
-  languages?: string[];
-  timezone?: string;
-  systemTime?: string;
-  screen?: {
-    width: number;
-    height: number;
-    colorDepth?: number;
-    pixelRatio?: number;
-    availWidth?: number;
-    availHeight?: number;
-  };
-  platform?: string;
-  hardwareConcurrency?: number;
-  deviceMemory?: number;
-  webglVendor?: string;
-  webglRenderer?: string;
-  canvasFingerprint?: string;
-  audioFingerprint?: string;
-  clientRectsHash?: string;
-  legacyFonts?: string[];
-  fontCount?: number;
-  cookiesEnabled?: boolean;
-  javaEnabled?: boolean;
-  flashEnabled?: boolean;
-  webrtcDisabled?: boolean;
-  domStorageEnabled?: boolean;
-  // Enhanced fingerprint structures
-  canvas?: {
-    hash: string;
-    dataURL?: string;
-    width: number;
-    height: number;
-    renderingTime?: number;
-  };
-  webgl?: {
-    hash: string;
-    vendor: string;
-    renderer: string;
-    unmaskedVendor?: string;
-    unmaskedRenderer?: string;
-    maxTextureSize?: number;
-    extensions?: string[];
-  };
-  audio?: {
-    hash: string;
-    sampleRate?: number;
-    numberOfOutputs?: number;
-    channelCount?: number;
-  };
-  clientRects?: {
-    hash: string;
-    elementCount: number;
-    totalVariance?: number;
-    averageVariance?: number;
-  };
-  fonts?: {
-    hash: string;
-    detected?: string[];
-    base?: string[];
-    totalTested?: number;
-  };
-  webrtc?: {
-    localIP?: string;
-    publicIP?: string;
-  };
-  permissions?: Array<{
-    name: string;
-    state: 'granted' | 'denied' | 'prompt';
-  }>;
-  geolocation?: {
-    latitude: number;
-    longitude: number;
-    accuracy: number;
-  };
-}
+export type { FingerprintPayload } from '../../../src/types/report';
+import type { FingerprintPayload } from '../../../src/types/report';
 
 export interface ReportRequest {
   ip?: string;
@@ -176,6 +108,7 @@ export interface ASNInfo {
   description?: string;
   country?: string;
   org_name?: string;
+  network_type?: string;
 }
 
 export interface ASNAnalysis {

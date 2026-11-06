@@ -236,22 +236,22 @@ export const FingerprintExplorer = ({ fingerprint, onRegenerate }: FingerprintEx
     }
 
     // Fonts
-    if (fingerprint.fonts) {
+    if (fingerprint.enhancedFonts) {
       methods.push({
         id: 'fonts',
         name: t('explorer.methods.fonts.name'),
         description: t('explorer.methods.fonts.description'),
-        value: fingerprint.fonts.hash,
-        hash: fingerprint.fonts.hash,
+        value: fingerprint.enhancedFonts.hash,
+        hash: fingerprint.enhancedFonts.hash,
         confidence: 90,
         entropy: 3.2,
         suspicious: false,
         canRegenerate: false,
         details: {
-          detectedFonts: fingerprint.fonts.detected?.length || 0,
-          baseFonts: fingerprint.fonts.base?.length || 0,
-          totalTested: fingerprint.fonts.totalTested || 0,
-          sampleFonts: fingerprint.fonts.detected?.slice(0, 5).join(', ') + '...',
+          detectedFonts: fingerprint.enhancedFonts.detected?.length || 0,
+          baseFonts: fingerprint.enhancedFonts.base?.length || 0,
+          totalTested: fingerprint.enhancedFonts.totalTested || 0,
+          sampleFonts: fingerprint.enhancedFonts.detected?.slice(0, 5).join(', ') + '...',
         },
       });
     }

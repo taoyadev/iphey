@@ -1,281 +1,147 @@
 import { logger } from '../utils/logger';
-import { requestDeduplicator } from '../utils/requestDeduplication';
+import { ipInsightSchema } from '../schemas/ipInsight';
+import { RequestDeduplicator } from '../utils/requestDeduplication';
+import { ApiError } from '../utils/apiError';
+import { parseIP } from '../utils/networkInput';
 import type { Env } from '../worker/types';
 import type { IpInfoDetails, NormalizedIpInsight, RadarIpResponse } from '../types/ip';
-import type { IpbotResult } from '../types/ipbot';
 import { normalizeIpInfo, normalizeRadar } from './ipNormalization';
-import { createIpbotLookupService, ipbotTtlMs, normalizeIpbot } from './ipbotService';
+import { ipbotTtlMs, normalizeIpbot } from './ipbotService';
+import { fetchIpbotIp } from '../clients/ipbotClient';
 import { createCache } from '../utils/cacheFactory.worker';
 
-const CF_BASE = 'https://api.cloudflare.com/client/v4';
-
-const parseNumber = (value: string | undefined, fallback: number): number => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+const positive = (value: string | undefined, fallback: number) =>
+  Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
 
 export const createWorkerIpService = (env: Env) => {
-  const ttlMs = parseNumber(env.CACHE_TTL_MS, 5 * 60 * 1000);
-  const staleTtlMs = parseNumber(env.CACHE_STALE_TTL_MS, 30 * 60 * 1000);
-  const backend = env.CACHE_BACKEND === 'kv' ? 'kv' : 'memory';
-  const clientTimeout = parseNumber(env.CLIENT_TIMEOUT_MS, 2500);
-  const ipbotOrigin = env.IPBOT_API_ORIGIN ?? 'https://api.ipbot.com';
-  const ipbotTimeoutMs = parseNumber(env.IPBOT_TIMEOUT_MS, 4000);
-  const ipbotMaxRetries = parseNumber(env.IPBOT_MAX_RETRIES, 3);
-  const ipbotTtlMsClean = parseNumber(env.CACHE_TTL_IPBOT_MS, 24 * 60 * 60 * 1000);
-  const ipbotTtlMsHighRisk = parseNumber(env.CACHE_TTL_IPBOT_HIGH_RISK_MS, 60 * 60 * 1000);
-
+  const ttlMs = positive(env.CACHE_TTL_MS, 300000);
+  const staleTtlMs = Math.max(ttlMs, positive(env.CACHE_STALE_TTL_MS, 1800000));
   const ipCache = createCache<NormalizedIpInsight>('ip-insight', env.IP_CACHE, {
-    backend,
+    backend: env.CACHE_BACKEND === 'kv' ? 'kv' : 'memory',
     ttlMs,
     staleTtlMs,
   });
-  const ipbotCache = createCache<IpbotResult>('ipbot', env.IP_CACHE, {
-    backend,
-    ttlMs: ipbotTtlMsClean,
-    staleTtlMs: ipbotTtlMsClean,
-  });
-  const ipbotService = env.IPBOT_API_KEY
-    ? createIpbotLookupService({
-        cache: ipbotCache,
-        client: {
-          origin: ipbotOrigin,
-          apiKey: env.IPBOT_API_KEY,
-          timeoutMs: ipbotTimeoutMs,
-          maxRetries: ipbotMaxRetries,
-        },
-        cleanTtlMs: ipbotTtlMsClean,
-        highRiskTtlMs: ipbotTtlMsHighRisk,
-      })
-    : null;
+  const cleanIpbotTtlMs = positive(env.CACHE_TTL_IPBOT_MS, 86400000);
+  const highRiskIpbotTtlMs = positive(env.CACHE_TTL_IPBOT_HIGH_RISK_MS, 3600000);
+  const pending = new RequestDeduplicator();
+  let lastSuccessAt: number | null = null;
 
-  const fetchWithTimeout = async (url: string, init: RequestInit = {}) => {
+  async function fetchJson<T>(url: string, headers: Record<string, string>, total: AbortSignal): Promise<T> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), clientTimeout);
+    const timer = setTimeout(() => controller.abort(), Math.min(2500, positive(env.CLIENT_TIMEOUT_MS, 2500)));
     try {
-      return await fetch(url, { ...init, signal: controller.signal });
+      const response = await fetch(url, { headers, signal: AbortSignal.any([total, controller.signal]) });
+      if (!response.ok) throw new Error('Provider returned an error');
+      return (await response.json()) as T;
     } finally {
-      clearTimeout(timeout);
+      clearTimeout(timer);
     }
-  };
+  }
 
-  const withRetry = async <T>(fn: () => Promise<T>, attempts = 2, delayMs = 150): Promise<T> => {
-    let lastError: unknown;
-    for (let i = 0; i < attempts; i++) {
-      try {
-        return await fn();
-      } catch (error) {
-        lastError = error;
-        if (i < attempts - 1 && delayMs > 0) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+  const lookupIpInsight = async (input: string, signal?: AbortSignal): Promise<NormalizedIpInsight> => {
+    signal?.throwIfAborted();
+    const parsed = parseIP(input);
+    if (!parsed) throw new ApiError(400, 'Invalid IP address');
+    if (parsed.category !== 'public')
+      throw new ApiError(422, 'This special-use address has no public geolocation', { category: parsed.category });
+    const ip = parsed.ip;
+    const key = `ip-observed-v2:${ip}`;
+    return pending.deduplicate(
+      key,
+      async sharedSignal => {
+        sharedSignal.throwIfAborted();
+        const cacheResult = await ipCache.getWithStale(key);
+        const cachedData = ipInsightSchema.safeParse(cacheResult.entry?.data);
+        const maximumAge =
+          cachedData.success && cachedData.data.source === 'ipbot'
+            ? Math.max(cleanIpbotTtlMs, highRiskIpbotTtlMs, staleTtlMs)
+            : staleTtlMs;
+        const cached =
+          cachedData.success &&
+          parseIP(cachedData.data.ip)?.ip === ip &&
+          cachedData.data.fetchedAt <= Date.now() &&
+          Date.now() - cachedData.data.fetchedAt <= maximumAge
+            ? cacheResult
+            : { entry: null, isStale: false };
+        sharedSignal.throwIfAborted();
+        if (cached.entry && !cached.isStale) return { ...cached.entry.data, cacheStatus: 'fresh' };
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7500);
+        const upstreamSignal = AbortSignal.any([sharedSignal, controller.signal]);
+        let insight: NormalizedIpInsight | null = null;
+        let ipbotFreshTtl: number | undefined;
+        try {
+          if (env.IPBOT_API_KEY) {
+            try {
+              const ipbot = await fetchIpbotIp(ip, {
+                origin: env.IPBOT_API_ORIGIN ?? 'https://api.ipbot.com',
+                apiKey: env.IPBOT_API_KEY,
+                timeoutMs: Math.min(2500, positive(env.IPBOT_TIMEOUT_MS, 2500)),
+                maxRetries: 0,
+                signal: upstreamSignal,
+              });
+              insight = normalizeIpbot(ipbot);
+              ipbotFreshTtl = ipbotTtlMs(ipbot.data, cleanIpbotTtlMs, highRiskIpbotTtlMs);
+              if (parseIP(insight.ip)?.ip !== ip || !ipInsightSchema.safeParse(insight).success) insight = null;
+            } catch {
+              logger.warn('IPbot lookup unavailable');
+            }
+          }
+          if (!insight && env.IPINFO_TOKEN && !upstreamSignal.aborted) {
+            try {
+              insight = normalizeIpInfo(
+                await fetchJson<IpInfoDetails>(
+                  `https://ipinfo.io/${encodeURIComponent(ip)}/json?token=${env.IPINFO_TOKEN}`,
+                  { Accept: 'application/json' },
+                  upstreamSignal
+                )
+              );
+              if (parseIP(insight.ip)?.ip !== ip || !ipInsightSchema.safeParse(insight).success) insight = null;
+            } catch {
+              logger.warn('IPinfo lookup unavailable');
+            }
+          }
+          if (!insight && env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_RADAR_TOKEN && !upstreamSignal.aborted) {
+            try {
+              const data = await fetchJson<{ success: boolean; result: RadarIpResponse }>(
+                `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/intelligence/ip?ip=${encodeURIComponent(ip)}`,
+                { Authorization: `Bearer ${env.CLOUDFLARE_RADAR_TOKEN}` },
+                upstreamSignal
+              );
+              if (data.success) insight = normalizeRadar(data.result);
+              if (insight && (parseIP(insight.ip)?.ip !== ip || !ipInsightSchema.safeParse(insight).success))
+                insight = null;
+            } catch {
+              logger.warn('Radar lookup unavailable');
+            }
+          }
+        } finally {
+          clearTimeout(timer);
         }
-      }
-    }
-    throw lastError instanceof Error ? lastError : new Error('Unknown fetch error');
-  };
-
-  const fetchIpInfoWorker = async (ip: string): Promise<IpInfoDetails | null> => {
-    if (!env.IPINFO_TOKEN) {
-      return null;
-    }
-    const url = `https://ipinfo.io/${encodeURIComponent(ip)}/json?token=${env.IPINFO_TOKEN}`;
-    const response = await withRetry(() => fetchWithTimeout(url, { headers: { Accept: 'application/json' } }));
-    if (!response.ok) {
-      throw new Error(`ipinfo request failed: ${response.status}`);
-    }
-    return (await response.json()) as IpInfoDetails;
-  };
-
-  const fetchRadarWorker = async (ip: string): Promise<RadarIpResponse | null> => {
-    if (!env.CLOUDFLARE_ACCOUNT_ID || !env.CLOUDFLARE_RADAR_TOKEN) {
-      return null;
-    }
-    const url = `${CF_BASE}/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/intelligence/ip?ip=${encodeURIComponent(ip)}`;
-    const response = await withRetry(() =>
-      fetchWithTimeout(url, {
-        headers: {
-          Authorization: `Bearer ${env.CLOUDFLARE_RADAR_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      })
+        sharedSignal.throwIfAborted();
+        if (!insight) {
+          if (cached.entry && cached.entry.expiresAt > Date.now())
+            return { ...cached.entry.data, cacheStatus: 'stale', refreshFailed: true };
+          throw new ApiError(503, 'IP data is unavailable', { code: 'IP_DATA_UNAVAILABLE', retryable: true });
+        }
+        lastSuccessAt = Date.now();
+        const fresh = insight.source === 'ipbot' ? ipbotFreshTtl! : ttlMs;
+        try {
+          await ipCache.set(key, insight, fresh, Math.max(fresh, staleTtlMs));
+        } catch {
+          logger.warn('Cache write unavailable; preserving provider result');
+        }
+        sharedSignal.throwIfAborted();
+        return { ...insight, cacheStatus: 'fresh' };
+      },
+      signal
     );
-    if (!response.ok) {
-      throw new Error(`Cloudflare Radar request failed: ${response.status}`);
-    }
-    const payload = (await response.json()) as { success: boolean; result: RadarIpResponse };
-    if (!payload.success) {
-      throw new Error('Radar lookup unsuccessful');
-    }
-    return payload.result;
-  };
-
-  const lookupIpbotInsight = async (ip: string): Promise<{ insight: NormalizedIpInsight; ttlMs: number } | null> => {
-    if (!ipbotService) {
-      return null;
-    }
-
-    const result = await ipbotService.lookupIP(ip);
-    return {
-      insight: normalizeIpbot(result),
-      ttlMs: ipbotTtlMs(result.data, ipbotTtlMsClean, ipbotTtlMsHighRisk),
-    };
-  };
-
-  const revalidateIpInsight = async (ip: string): Promise<void> => {
-    try {
-      let insight: NormalizedIpInsight | null = null;
-      let cacheTtlMs = ttlMs;
-      let cacheStaleTtlMs = staleTtlMs;
-
-      try {
-        const ipbot = await lookupIpbotInsight(ip);
-        if (ipbot) {
-          insight = ipbot.insight;
-          cacheTtlMs = ipbot.ttlMs;
-          cacheStaleTtlMs = ipbot.ttlMs;
-        }
-      } catch (error) {
-        logger.warn({ err: error }, 'IPbot revalidation failed');
-      }
-
-      if (!insight) {
-        try {
-          const ipinfo = await fetchIpInfoWorker(ip);
-          if (ipinfo) {
-            insight = normalizeIpInfo(ipinfo);
-          }
-        } catch (error) {
-          logger.warn({ err: error }, 'ipinfo revalidation failed');
-        }
-      }
-
-      if (!insight) {
-        try {
-          const radar = await fetchRadarWorker(ip);
-          if (radar) {
-            insight = normalizeRadar(radar);
-          }
-        } catch (error) {
-          logger.warn({ err: error }, 'Cloudflare Radar revalidation failed');
-        }
-      }
-
-      if (insight) {
-        await ipCache.set(ip, insight, cacheTtlMs, cacheStaleTtlMs);
-        logger.debug({ ip }, 'Background revalidation completed');
-      }
-    } catch (error) {
-      logger.warn({ err: error, ip }, 'Background revalidation error');
-    }
-  };
-
-  const lookupIpInsight = async (ip: string): Promise<NormalizedIpInsight> => {
-    const { entry: cached, isStale } = await ipCache.getWithStale(ip);
-
-    if (cached) {
-      if (isStale) {
-        logger.debug({ ip }, 'Serving stale data, revalidating in background');
-        revalidateIpInsight(ip).catch(error => {
-          logger.warn({ err: error, ip }, 'Background revalidation failed');
-        });
-      }
-      return cached.data;
-    }
-
-    return requestDeduplicator.deduplicate(`ip:${ip}`, async () => {
-      const { entry: cachedAfterLock } = await ipCache.getWithStale(ip);
-      if (cachedAfterLock) {
-        return cachedAfterLock.data;
-      }
-
-      let insight: NormalizedIpInsight | null = null;
-      let cacheTtlMs = ttlMs;
-      let cacheStaleTtlMs = staleTtlMs;
-
-      try {
-        const ipbot = await lookupIpbotInsight(ip);
-        if (ipbot) {
-          insight = ipbot.insight;
-          cacheTtlMs = ipbot.ttlMs;
-          cacheStaleTtlMs = ipbot.ttlMs;
-        }
-      } catch (error) {
-        logger.warn({ err: error }, 'IPbot lookup failed');
-      }
-
-      if (!insight) {
-        try {
-          const ipinfo = await fetchIpInfoWorker(ip);
-          if (ipinfo) {
-            insight = normalizeIpInfo(ipinfo);
-          }
-        } catch (error) {
-          logger.warn({ err: error }, 'ipinfo lookup failed');
-        }
-      }
-
-      if (!insight) {
-        try {
-          const radar = await fetchRadarWorker(ip);
-          if (radar) {
-            insight = normalizeRadar(radar);
-          }
-        } catch (error) {
-          logger.warn({ err: error }, 'Cloudflare Radar lookup failed');
-        }
-      }
-
-      const finalInsight: NormalizedIpInsight = insight ?? {
-        ip,
-        city: 'Unknown',
-        region: 'Unknown',
-        country: 'US',
-        postal: '00000',
-        timezone: 'America/Chicago',
-        latitude: 37.751,
-        longitude: -97.822,
-        org: 'Unknown Organization',
-        asn: 'Unknown',
-        source: 'ipinfo',
-        fetchedAt: Date.now(),
-      };
-
-      if (!insight) {
-        // Return default data instead of throwing error
-        logger.warn({ ip }, 'No IP data source available, using defaults');
-      }
-
-      await ipCache.set(ip, finalInsight, cacheTtlMs, cacheStaleTtlMs);
-      return finalInsight;
-    });
-  };
-
-  const verifyRadarToken = async (): Promise<boolean> => {
-    if (!env.CLOUDFLARE_ACCOUNT_ID || !env.CLOUDFLARE_RADAR_TOKEN) {
-      return false;
-    }
-    const url = `${CF_BASE}/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/tokens/verify`;
-    try {
-      const response = await fetchWithTimeout(url, {
-        headers: {
-          Authorization: `Bearer ${env.CLOUDFLARE_RADAR_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        return false;
-      }
-      const payload = (await response.json()) as { success: boolean };
-      return Boolean(payload.success);
-    } catch (error) {
-      logger.warn({ err: error }, 'Radar token verification failed');
-      return false;
-    }
   };
 
   return {
     lookupIpInsight,
-    verifyRadarToken,
-    hasIpbot: Boolean(ipbotService),
+    // Status reflects this instance's observations, never credentials-as-health.
+    status: () => ({ status: lastSuccessAt ? 'observed' : 'unknown', lastSuccessAt }),
+    hasIpbot: Boolean(env.IPBOT_API_KEY),
   };
 };

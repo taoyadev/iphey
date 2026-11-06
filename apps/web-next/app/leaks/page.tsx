@@ -4,7 +4,7 @@ import { SITE_NAME, SITE_URL } from '@/lib/site';
 
 const title = 'Leaks';
 const description =
-  'Analyze browser and IP leak signals, compare leak surfaces, and verify that privacy protections are actually working.';
+  'Inspect your HTTP exit and optional WebRTC observations. DNS and independent IPv4/IPv6 path tests are not provided.';
 const canonical = `${SITE_URL}/leaks`;
 
 const breadcrumbJsonLd = {

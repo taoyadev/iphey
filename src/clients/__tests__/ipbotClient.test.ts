@@ -78,3 +78,21 @@ describe('fetchIpbotIp', () => {
     await expect(fetchIpbotIp('8.8.8.8', { ...options, apiKey: undefined })).rejects.toThrow(/IPBOT_API_KEY/);
   });
 });
+
+it('cancels Retry-After backoff promptly without another upstream attempt', async () => {
+  vi.useFakeTimers();
+  try {
+    const fetchMock = vi.fn(async () => makeResponse({}, { status: 429, headers: { 'Retry-After': '30' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+    const pending = fetchIpbotIp('8.8.8.8', { apiKey: 'test-key', signal: controller.signal, maxRetries: 3 });
+    const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(10);
+    controller.abort();
+    await rejected;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});

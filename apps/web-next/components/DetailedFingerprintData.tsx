@@ -110,9 +110,9 @@ export const DetailedFingerprintData: React.FC<DetailedFingerprintDataProps> = (
             <DataRow label={t('labels.ip')} value={reportIP || ipData?.ip || '—'} mono />
             <DataRow label={t('labels.asNumber')} value={ipData?.asn?.toString()} />
             <DataRow label={t('labels.organization')} value={ipData?.org} />
-            <DataRow label={t('labels.security')} value={t('labels.allClear')} />
-            <DataRow label="WebRTC" value={fingerprint.webrtc?.localIP || '—'} mono />
-            <DataRow label="WebRTC STUN" value={fingerprint.webrtc?.publicIP || '—'} mono />
+            <DataRow label={t('labels.security')} value="No safety conclusion" />
+            <DataRow label="WebRTC" value="Not measured" mono />
+            <DataRow label="WebRTC STUN" value="Not measured" mono />
           </div>
         </motion.div>
 
@@ -171,10 +171,10 @@ export const DetailedFingerprintData: React.FC<DetailedFingerprintDataProps> = (
                 label="Cookies"
                 value={fingerprint.cookiesEnabled ? t('labels.enabled') : t('labels.disabled')}
               />
-              <DataRow label={t('labels.fonts')} value={fingerprint.fonts?.hash || t('labels.loading')} mono />
+              <DataRow label={t('labels.fonts')} value={fingerprint.enhancedFonts?.hash || t('labels.loading')} mono />
               <DataRow
                 label={t('labels.fontsList')}
-                value={`${fingerprint.fonts?.detected?.length || 0} fonts detected`}
+                value={`${fingerprint.enhancedFonts?.detected?.length || 0} fonts detected`}
               />
             </div>
           </div>

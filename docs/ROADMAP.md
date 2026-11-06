@@ -7,7 +7,7 @@
 >
 > 1. 本机是 control plane，**禁止**本地跑 `wrangler dev` / `next dev` / Playwright / 长驻服务。运行时与 E2E 一律在 OpenClaw 执行。
 > 2. 每个任务**必须**满足其"验收标准(DoD)"才算完成；改完跑 `npm run typecheck && npm run lint && npm test`（根）和 `npm run web:lint`（前端），贴输出。
-> 3. **不要破坏后端契约**：IP provider 链"永不抛错、全失败回落 static default"的行为是硬约束（`src/services/ipService.worker.ts`）。新增 provider 只能 append + normalizer，不得改变回落语义。
+> 3. **不要破坏后端契约**：请求可以结构化降级；降级不得补造观测值。所有来源失败时返回明确的 unavailable；版本与兼容约束见 `docs/ENDGAME.md`。
 > 4. 改 AI chat 行为时，`src/worker.ts` 与 `apps/web-next/app/api/ai/chat/route.ts` **两份必须同步**。
 > 5. 单 PR 单关注点，Conventional Commits。涉及 secrets 绝不写入任何被 git 跟踪的文件。
 > 6. 每完成一个 Phase，先停下来汇报（文件清单 + 命令输出 + 残留风险），再进入下一个。
@@ -20,7 +20,7 @@
 
 **已具备（不要重做）：**
 
-- 后端 9 个端点、IPbot→ipinfo→Radar→default 回落链、KV + memory 双层 stale-while-revalidate 缓存、请求去重、风险感知 TTL。
+- 后端提供 IPbot→ipinfo→Radar 有界查询链；来源全部失败时明确 unavailable。KV / memory 缓存保留真实时间，过期不可用，实例内请求去重；观测合同见 ENDGAME。
 - 5 面板评分（browser/ip 各 0.30，location/hardware/software 各 0.133）。
 - 前端 4 个静态路由（`/`、`/docs`、`/api-reference`、`/leaks`）、7 个 Tab、React Query、Framer Motion、暗色模式、Leaflet 地图、Tremor 图表、AI 助手浮窗。
 - SEO 基础设施已存在：`sitemap.ts`、`robots.ts`、`site.webmanifest`、favicon 全套、根 `layout.tsx` 的 OG/Twitter/JSON-LD、Inter 字体 `display:swap`。
@@ -109,7 +109,7 @@
 - **1C-1 隐私友好分析**：接 **Cloudflare Web Analytics**（与 Pages 同源、无 cookie、无需同意横幅、对 SEO 隐私定位最契合）。在 `layout.tsx` 注入 beacon。**不要**用 GA4（与本产品"隐私"定位冲突，且要 cookie 同意）。
   - **DoD**：CF dashboard 能看到 PV；Lighthouse 不因脚本掉分。
 - **1C-2 前端错误监控**：接 **Sentry**（`@sentry/nextjs`，静态导出兼容模式）或更轻的自托管方案。至少捕获前端运行时异常 + React Query 失败。
-- **1C-3 后端可观测**：Worker 增加结构化日志采样 + 关键路径（provider 失败、回落到 default、AI 全模型失败）打点；评估接 **Cloudflare Workers Logpush / Analytics Engine** 或 Sentry Worker SDK。
+- **1C-3 后端可观测**：Worker 增加结构化日志采样 + 关键路径（provider 失败、结构化 unavailable、可选 AI 不可用）打点；评估接 **Cloudflare Workers Logpush / Analytics Engine** 或 Sentry Worker SDK。
   - **DoD**：人为制造一次 provider 失败，能在监控里看到事件。
 
 ### 模块 1D：评估器测试补齐（缺口 F）

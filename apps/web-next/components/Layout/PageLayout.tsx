@@ -1,9 +1,7 @@
-'use client';
 import { ReactNode } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
-import { SkipToContentLink } from '@/components/Accessibility/ScreenReaderAnnouncer';
-import { CookieConsent } from '@/components/CookieConsent';
+import { SkipToContentLink } from '@/components/Accessibility/SkipToContentLink';
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -18,7 +16,6 @@ export const PageLayout = ({ children }: PageLayoutProps) => {
         <div className="mx-auto max-w-7xl space-y-10">{children}</div>
       </main>
       <Footer />
-      <CookieConsent />
     </div>
   );
 };

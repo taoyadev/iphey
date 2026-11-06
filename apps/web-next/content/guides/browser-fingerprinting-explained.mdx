@@ -1,0 +1,17 @@
+## Start with one signal
+
+A browser exposes properties such as language, timezone and screen dimensions. Optional APIs also expose rendering and audio outputs. Open an individual test and inspect its source, status and limitation.
+
+## Understand hashes
+
+Canvas and Audio tests hash one bounded computation. WebGL reports browser-provided GPU information; this implementation hashes vendor and renderer, not rendered pixels. A hash can be compared between runs of the same test, but cannot estimate how many people share it.
+
+## Recognize incomplete coverage
+
+The font probe compares metrics for 24 named candidates against generic fallback fonts and separately lists document-loaded FontFace entries. Distinct metrics suggest availability within this document; masking, aliases and equal metrics can affect results. It does not enumerate all installed fonts. A blocked API is a missing observation, not evidence of deception. Run a second test only when its scope helps answer your question.
+
+## Repeat deliberately
+
+Save the baseline, change one browser setting, and repeat. Compare identifies version or scope differences as incomparable rather than claiming improvement.
+
+[Open the relevant tool](/fingerprinting/canvas) · [Compare saved records](/compare)

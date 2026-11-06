@@ -41,6 +41,12 @@ jobs:
       - name: Lint frontend
         run: npm run web:lint
 
+      - name: Test frontend
+        run: npm run test --prefix apps/web-next
+
+      - name: Verify static frontend build
+        run: npm run web:build
+
   deploy:
     needs: quality
     if: github.event_name != 'pull_request'
@@ -68,12 +74,17 @@ jobs:
       - name: Build Worker (Backend API)
         run: npm run build
 
+      - name: Verify production account binding
+        run: test "$CLOUDFLARE_ACCOUNT_ID" = "fe394f7c37b25babc4e351d704a6a97c"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Deploy Worker to Cloudflare
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy --var RELEASE_SHA:${{ github.sha }}
           secrets: |
             IPBOT_API_KEY
             IPINFO_TOKEN
@@ -89,7 +100,8 @@ jobs:
         run: npm run web:build
         env:
           NODE_ENV: production
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_API_URL: https://api.iphey.org
+          NEXT_PUBLIC_RELEASE_SHA: ${{ github.sha }}
 
       - name: Deploy Frontend to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4

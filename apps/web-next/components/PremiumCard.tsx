@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { cn } from '@/lib/utils';
 
@@ -36,19 +35,11 @@ export function PremiumCard({
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay, ease: 'easeOut' }}
-      whileHover={hover ? { scale: 1.02 } : {}}
-      className={baseClasses}
-    >
-      {/* Subtle gradient overlay */}
+    <div className={cn(baseClasses, delay > 0 && 'transition-all')}>
       {gradient && (
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-50" />
       )}
 
-      {/* Shimmer effect */}
       <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-500">
         <div className="shimmer absolute inset-0" />
       </div>
@@ -63,21 +54,15 @@ export function PremiumCard({
                 </div>
               )}
               <div className="flex-1">
-                {title && (
-                  <CardTitle className="text-xl font-bold text-foreground mb-1">
-                    {title}
-                  </CardTitle>
-                )}
-                {description && (
-                  <p className="text-sm text-muted-foreground">{description}</p>
-                )}
+                {title && <CardTitle className="text-xl font-bold text-foreground mb-1">{title}</CardTitle>}
+                {description && <p className="text-sm text-muted-foreground">{description}</p>}
               </div>
             </div>
           </CardHeader>
         )}
         <CardContent className="pt-0">{children}</CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
 
@@ -90,25 +75,21 @@ export function PremiumPanel({
   delay = 0,
 }: Omit<PremiumCardProps, 'icon' | 'hover' | 'gradient'>) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay, ease: 'easeOut' }}
+    <div
       className={cn(
         'glass-panel rounded-2xl p-6 border',
         glass && 'shadow-lg',
-        className
+        className,
+        delay > 0 && 'transition-all'
       )}
     >
       {title && (
         <div className="flex items-center gap-3 mb-6">
           <h3 className="text-xl font-bold text-foreground">{title}</h3>
-          {description && (
-            <p className="text-sm text-muted-foreground ml-auto">{description}</p>
-          )}
+          {description && <p className="text-sm text-muted-foreground ml-auto">{description}</p>}
         </div>
       )}
       {children}
-    </motion.div>
+    </div>
   );
 }

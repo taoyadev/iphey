@@ -62,10 +62,6 @@ export function normalizeIpbot(result: IpbotResult): NormalizedIpInsight {
   const score = data.score ?? {};
 
   const riskReasons = [
-    classification.is_proxy ? 'Proxy detected' : undefined,
-    classification.is_vpn ? 'VPN detected' : undefined,
-    classification.is_tor ? 'Tor exit node detected' : undefined,
-    classification.is_datacenter ? 'Datacenter IP' : undefined,
     classification.threat_level && lower(classification.threat_level) !== 'low'
       ? `Threat level: ${classification.threat_level}`
       : undefined,
@@ -96,7 +92,7 @@ export function normalizeIpbot(result: IpbotResult): NormalizedIpInsight {
       hosting: classification.is_datacenter,
       service: classification.usage_type,
     },
-    riskScore: score.risk_score ?? (isHighRisk(data) ? HIGH_RISK_RISK_SCORE : 10),
+    riskScore: score.risk_score,
     riskReasons: [...new Set(riskReasons)],
     anycast: classification.is_anycast,
     source: 'ipbot',

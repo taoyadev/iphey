@@ -7,6 +7,22 @@ import type { CacheAdapter, CacheEntry } from './cacheInterface';
 import { logger } from './logger';
 import type { KVNamespace } from '@cloudflare/workers-types';
 
+const validEntry = <T>(value: unknown): CacheEntry<T> | null => {
+  if (!value || typeof value !== 'object') return null;
+  const entry = value as Partial<CacheEntry<T>>;
+  if (
+    !('data' in entry) ||
+    typeof entry.staleAt !== 'number' ||
+    typeof entry.expiresAt !== 'number' ||
+    !Number.isFinite(entry.staleAt) ||
+    !Number.isFinite(entry.expiresAt) ||
+    entry.staleAt < 0 ||
+    entry.expiresAt < entry.staleAt
+  )
+    return null;
+  return entry as CacheEntry<T>;
+};
+
 export class CloudflareKVCache<T = unknown> implements CacheAdapter<T> {
   private kv: KVNamespace;
   private readonly defaultTtl: number;
@@ -30,11 +46,11 @@ export class CloudflareKVCache<T = unknown> implements CacheAdapter<T> {
         return null;
       }
 
-      const entry = value as CacheEntry<T>;
+      const entry = validEntry<T>(value);
+      if (!entry) return null;
 
       // Check expiration (KV auto-deletes, but double-check)
-      if (entry.expiresAt < Date.now()) {
-        await this.delete(key);
+      if (entry.expiresAt <= Date.now()) {
         return null;
       }
 
@@ -52,17 +68,17 @@ export class CloudflareKVCache<T = unknown> implements CacheAdapter<T> {
         return { entry: null, isStale: false };
       }
 
-      const entry = value as CacheEntry<T>;
+      const entry = validEntry<T>(value);
+      if (!entry) return { entry: null, isStale: false };
       const now = Date.now();
 
       // Completely expired beyond stale window
-      if (entry.expiresAt < now) {
-        await this.delete(key);
+      if (entry.expiresAt <= now) {
         return { entry: null, isStale: false };
       }
 
       // Check if stale (fresh TTL expired but within stale window)
-      const isStale = entry.staleAt < now;
+      const isStale = entry.staleAt <= now;
       return { entry, isStale };
     } catch (error) {
       logger.warn({ err: error, key }, 'Cloudflare KV getWithStale failed');
@@ -83,7 +99,7 @@ export class CloudflareKVCache<T = unknown> implements CacheAdapter<T> {
       };
 
       // KV expirationTtl is in seconds
-      const expirationTtl = Math.ceil(staleWindow / 1000);
+      const expirationTtl = Math.max(60, Math.ceil(staleWindow / 1000));
 
       await this.kv.put(key, JSON.stringify(entry), {
         expirationTtl,

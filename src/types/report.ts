@@ -38,6 +38,8 @@ export interface FingerprintPayload {
     renderingTime?: number;
   };
   webgl?: {
+    version?: string;
+    debugInfoAvailable?: boolean;
     hash: string;
     vendor: string;
     renderer: string;
@@ -59,6 +61,7 @@ export interface FingerprintPayload {
     averageVariance?: number;
   };
   enhancedFonts?: {
+    documentFonts?: string[];
     hash: string;
     detected?: string[];
     base?: string[];
@@ -102,6 +105,14 @@ export interface ReportResponse {
   ip?: string;
   fetchedAt: number;
   source: 'ipinfo' | 'radar' | 'ipbot' | 'mixed';
+  uniqueness?: {
+    uniquenessScore: number;
+    entropyBand: 'low' | 'moderate' | 'high';
+    entropyAverage: number;
+    estimatedDistinctiveness: string;
+    standoutPanels: string[];
+    whatMakesYouUnique: string[];
+  };
   enhanced?: {
     browser: {
       detailedSignals: Array<{

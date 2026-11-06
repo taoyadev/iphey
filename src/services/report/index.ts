@@ -35,6 +35,16 @@ export const generateReportWithLookup = async (
   }
 
   const data = parsed.data;
+  const fingerprint = data.fingerprint;
+  const hasCanvas = Boolean(fingerprint.canvas?.hash || fingerprint.canvasFingerprint);
+  const hasWebGL = Boolean(fingerprint.webgl?.renderer || fingerprint.webglRenderer);
+  const hasAudio = Boolean(fingerprint.audio?.hash || fingerprint.audioFingerprint);
+  if (!hasCanvas || !hasWebGL || !hasAudio) {
+    throw new ApiError(
+      422,
+      'Legacy scoring requires complete hardware measurements; use the observation workspace for partial results'
+    );
+  }
   const ipToInspect = data.ip ?? clientIp;
   if (!ipToInspect) {
     throw new ApiError(400, 'IP is required if not provided via request');
@@ -45,6 +55,8 @@ export const generateReportWithLookup = async (
   }
 
   const insight = await ipLookup(ipToInspect);
+  if (insight.riskScore === undefined)
+    throw new ApiError(503, 'Legacy risk report unavailable; use /api/v2/connection for partial observations');
 
   // Parallelize evaluators for better performance
   const [browser, location, ipAddress, hardware, software] = await Promise.all([
@@ -104,38 +116,5 @@ export const generateReportWithLookup = async (
     ip: insight.ip,
     fetchedAt: Date.now(),
     source: insight.source,
-    // Enhanced data for frontend
-    enhanced: {
-      browser: {
-        detailedSignals: panels.browser.detailedSignals,
-        confidence: panels.browser.confidence,
-        entropy: panels.browser.entropy,
-        breakdown: panels.browser.breakdown,
-      },
-      location: {
-        detailedSignals: panels.location.detailedSignals,
-        confidence: panels.location.confidence,
-        entropy: panels.location.entropy,
-        breakdown: panels.location.breakdown,
-      },
-      ipAddress: {
-        detailedSignals: panels.ipAddress.detailedSignals,
-        confidence: panels.ipAddress.confidence,
-        entropy: panels.ipAddress.entropy,
-        breakdown: panels.ipAddress.breakdown,
-      },
-      hardware: {
-        detailedSignals: panels.hardware.detailedSignals,
-        confidence: panels.hardware.confidence,
-        entropy: panels.hardware.entropy,
-        breakdown: panels.hardware.breakdown,
-      },
-      software: {
-        detailedSignals: panels.software.detailedSignals,
-        confidence: panels.software.confidence,
-        entropy: panels.software.entropy,
-        breakdown: panels.software.breakdown,
-      },
-    },
   };
 };

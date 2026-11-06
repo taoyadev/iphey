@@ -8,13 +8,47 @@ export const CookieConsent = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Check if user has already made a choice
     const consentGiven = localStorage.getItem('cookie-consent');
-    if (!consentGiven) {
-      // Show banner after a short delay
-      const timer = setTimeout(() => setIsVisible(true), 1000);
-      return () => clearTimeout(timer);
+    if (consentGiven) {
+      return;
     }
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let revealed = false;
+
+    const reveal = () => {
+      if (revealed || localStorage.getItem('cookie-consent')) {
+        return;
+      }
+      revealed = true;
+      timer = setTimeout(() => setIsVisible(true), 150);
+      removeListeners();
+    };
+
+    const removeListeners = () => {
+      window.removeEventListener('pointerdown', reveal);
+      window.removeEventListener('keydown', reveal);
+      window.removeEventListener('scroll', reveal);
+      window.removeEventListener('visibilitychange', handleVisibility);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        reveal();
+      }
+    };
+
+    window.addEventListener('pointerdown', reveal, { once: true, passive: true });
+    window.addEventListener('keydown', reveal, { once: true });
+    window.addEventListener('scroll', reveal, { once: true, passive: true });
+    window.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      removeListeners();
+    };
   }, []);
 
   const handleAcceptAll = () => {

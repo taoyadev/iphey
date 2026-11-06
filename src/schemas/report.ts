@@ -1,20 +1,6 @@
 import { z } from 'zod';
 
-// IP validation that works in Workers (no node:net dependency)
-const isValidIP = (ip: string): boolean => {
-  const ipv4Parts = ip.split('.');
-  if (ipv4Parts.length === 4 && ipv4Parts.every(part => /^(\d{1,3})$/.test(part))) {
-    return ipv4Parts.every(part => {
-      const n = Number(part);
-      return n >= 0 && n <= 255;
-    });
-  }
-
-  // Simplified but compression-aware IPv6 matcher
-  const ipv6Regex =
-    /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^:(?::[0-9a-fA-F]{1,4}){1,7}$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}$/;
-  return ipv6Regex.test(ip);
-};
+import { parseIP } from '../utils/networkInput';
 
 export const fingerprintSchema = z.object({
   userAgent: z.string().min(5),
@@ -41,7 +27,7 @@ export const fingerprintSchema = z.object({
   audioFingerprint: z.string().optional(),
   clientRectsHash: z.string().optional(),
   fonts: z.array(z.string()).max(200).optional(),
-  fontCount: z.number().int().positive().optional(),
+  fontCount: z.number().int().nonnegative().optional(),
   cookiesEnabled: z.boolean().optional(),
   javaEnabled: z.boolean().optional(),
   flashEnabled: z.boolean().optional(),
@@ -67,6 +53,8 @@ export const fingerprintSchema = z.object({
     .optional(),
   webgl: z
     .object({
+      version: z.string().max(512).optional(),
+      debugInfoAvailable: z.boolean().optional(),
       hash: z.string().min(5),
       vendor: z.string().min(1),
       renderer: z.string().min(1),
@@ -94,6 +82,7 @@ export const fingerprintSchema = z.object({
     .optional(),
   enhancedFonts: z
     .object({
+      documentFonts: z.array(z.string()).max(200).optional(),
       hash: z.string().min(5),
       detected: z.array(z.string()).max(1000).optional(),
       base: z.array(z.string()).max(1000).optional(),
@@ -113,7 +102,7 @@ export const reportRequestSchema = z
   .object({
     ip: z
       .string()
-      .refine(value => isValidIP(value), { message: 'Invalid IP address' })
+      .refine(value => parseIP(value) !== null, { message: 'Invalid IP address' })
       .optional(),
     fingerprint: fingerprintSchema,
   })

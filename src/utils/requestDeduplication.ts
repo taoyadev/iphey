@@ -1,79 +1,66 @@
-/**
- * Request Deduplication Utility
- * Prevents duplicate concurrent requests for the same resource
- */
-
-interface PendingRequest<T> {
-  promise: Promise<T>;
-  timestamp: number;
+interface PendingRequest {
+  promise: Promise<unknown>;
+  controller: AbortController;
+  subscribers: number;
 }
 
-class RequestDeduplicator {
-  private pending = new Map<string, PendingRequest<unknown>>();
-  private readonly ttl: number;
+/** Instance-local sharing. One cancelled subscriber must not cancel another. */
+export class RequestDeduplicator {
+  private pending = new Map<string, PendingRequest>();
 
-  constructor(ttlMs: number = 5000) {
-    this.ttl = ttlMs;
-  }
-
-  /**
-   * Deduplicate requests by key
-   * If a request for the same key is already in flight, return the existing promise
-   */
-  async deduplicate<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    this.cleanup();
-    const existing = this.pending.get(key) as PendingRequest<T> | undefined;
-
-    // Return existing request if still valid
-    if (existing && Date.now() - existing.timestamp < this.ttl) {
-      return existing.promise;
+  deduplicate<T>(key: string, fn: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted) return Promise.reject(signal.reason);
+    let entry = this.pending.get(key);
+    if (!entry) {
+      const controller = new AbortController();
+      const created: PendingRequest = { controller, subscribers: 0, promise: Promise.resolve() };
+      created.promise = Promise.resolve()
+        .then(() => {
+          controller.signal.throwIfAborted();
+          return fn(controller.signal);
+        })
+        .finally(() => {
+          if (this.pending.get(key) === created) this.pending.delete(key);
+        });
+      entry = created;
+      this.pending.set(key, entry);
     }
-
-    // Create new request
-    const promise = fn()
-      .then(result => {
-        this.pending.delete(key);
-        return result;
-      })
-      .catch(error => {
-        this.pending.delete(key);
-        throw error;
-      });
-
-    this.pending.set(key, {
-      promise,
-      timestamp: Date.now(),
+    entry.subscribers++;
+    const current = entry;
+    const promise = current.promise as Promise<T>;
+    if (!signal) return promise;
+    return new Promise<T>((resolve, reject) => {
+      let settled = false;
+      const finish = (callback: () => void) => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener('abort', abort);
+        current.subscribers--;
+        callback();
+      };
+      const abort = () =>
+        finish(() => {
+          if (current.subscribers === 0) {
+            if (this.pending.get(key) === current) this.pending.delete(key);
+            current.controller.abort(signal.reason);
+          }
+          reject(signal.reason);
+        });
+      signal.addEventListener('abort', abort, { once: true });
+      promise.then(
+        value => finish(() => resolve(value)),
+        error => finish(() => reject(error))
+      );
+      if (signal.aborted) abort();
     });
-
-    return promise;
   }
 
-  /**
-   * Clean up expired entries
-   */
-  private cleanup() {
-    const now = Date.now();
-    for (const [key, request] of this.pending.entries()) {
-      if (now - request.timestamp >= this.ttl) {
-        this.pending.delete(key);
-      }
-    }
-  }
-
-  /**
-   * Get current pending request count
-   */
   get size(): number {
     return this.pending.size;
   }
-
-  /**
-   * Clear all pending requests
-   */
   clear() {
+    for (const request of this.pending.values()) request.controller.abort();
     this.pending.clear();
   }
 }
-
-// Global deduplicator instance
 export const requestDeduplicator = new RequestDeduplicator();

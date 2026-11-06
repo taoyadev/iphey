@@ -1,0 +1,17 @@
+## Define the task
+
+For a browser-only proxy, inspect the requests it is configured to carry. For a VPN, inspect the connection before and after the tunnel is enabled. For Tor, consult the Tor Browser documentation and its own connection guidance. This guide does not rank the tools by a single safety score.
+
+## Measure the relevant surface
+
+Run the HTTP exit check twice with a named baseline. If permitted, add active WebRTC. A route change and an unchanged browser fingerprint can both be expected: network routing and browser-exposed properties are separate facts.
+
+## Avoid overclaiming
+
+An IP provider may label an address as hosting, proxy, VPN or Tor. Such classifications have false positives and coverage gaps, and are not direct evidence of abuse. Missing DNS and independent IPv6 tests remain missing.
+
+## Compare fairly
+
+Use the same browser, scope and versions. Save timestamps and sources. Treat provider changes as incomparable evidence until you understand how their methods differ.
+
+[Open the relevant tool](/leaks) · [Compare saved records](/compare)

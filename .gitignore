@@ -26,3 +26,9 @@ apps/web-next/out/
 # External libraries (not part of main app)
 mixvisit/
 SECRETS_TO_SET.md
+
+# Local browser acceptance artifacts
+output/playwright/
+
+# Version the root public peer-resolution settings; credentials belong outside it.
+!/.npmrc
